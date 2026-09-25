@@ -147,17 +147,15 @@ using (var scope = app.Services.CreateScope())
         }
     }
 
-    if (app.Environment.IsDevelopment())
+    // 3. Seed initial / demo data (Phone brands, phone models, sample products, stickers)
+    try
     {
-        try
-        {
-            var context = services.GetRequiredService<AppDbContext>();
-            await DbSeeder.SeedDemoDataAsync(context, logger);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "An error occurred while seeding demo data.");
-        }
+        var context = services.GetRequiredService<AppDbContext>();
+        await DbSeeder.SeedDemoDataAsync(context, logger);
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "An error occurred while seeding initial/demo data.");
     }
 }
 

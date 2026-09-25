@@ -12,7 +12,7 @@ public static class DbSeeder
 {
     public static async Task SeedDemoDataAsync(AppDbContext context, ILogger logger)
     {
-        logger.LogInformation("Starting development demo data seed...");
+        logger.LogInformation("Starting catalog and initial data seed...");
 
         // 1. Phone Brands
         var brands = new List<PhoneBrand>
