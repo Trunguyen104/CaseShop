@@ -14,6 +14,16 @@
             @ChildContent
         </div>
     }
+    else if (!string.IsNullOrEmpty(ButtonText) && OnButtonClick.HasDelegate)
+    {
+        <button type="button" @onclick="OnButtonClick" class="mt-7 inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-primary px-6 font-label-md text-label-md font-semibold text-on-primary transition-colors hover:bg-neutral-800">
+            @if (!string.IsNullOrEmpty(ButtonIcon))
+            {
+                <span class="material-symbols-outlined text-[18px]" aria-hidden="true">@ButtonIcon</span>
+            }
+            @ButtonText
+        </button>
+    }
     else if (!string.IsNullOrEmpty(ButtonText) && !string.IsNullOrEmpty(ButtonLink))
     {
         <a href="@ButtonLink" class="mt-7 inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-primary px-6 font-label-md text-label-md font-semibold text-on-primary transition-colors hover:bg-neutral-800">
@@ -44,6 +54,9 @@
 
     [Parameter]
     public string? ButtonIcon { get; set; }
+
+    [Parameter]
+    public EventCallback OnButtonClick { get; set; }
 
     [Parameter]
     public RenderFragment? ChildContent { get; set; }
