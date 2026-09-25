@@ -1,0 +1,31 @@
+# Environment files & Secrets
+.env
+.env.local
+.env.production
+!.env.example
+
+# Build results
+bin/
+obj/
+
+# Visual Studio / Rider / VS Code
+.vs/
+.vscode/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Node / Frontend assets
+node_modules/
+npm-debug.log*
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+.ai/
+*.md
+DEPLOYMENT_AWS_EC2.md
+Dockerfile
+docker-compose.prod.yml

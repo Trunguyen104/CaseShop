@@ -1,0 +1,53 @@
+<div class="rounded-2xl bg-surface-container-lowest px-6 py-16 text-center shadow-sm @Class">
+    <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-surface-container-low text-on-surface">
+        <span class="material-symbols-outlined text-[32px]" aria-hidden="true">@Icon</span>
+    </div>
+    <h2 class="mt-5 font-headline-md text-headline-md font-semibold text-on-surface">@Title</h2>
+    @if (!string.IsNullOrEmpty(Description))
+    {
+        <p class="mx-auto mt-2 max-w-md font-body-md text-body-md text-on-surface-variant">@Description</p>
+    }
+    
+    @if (ChildContent != null)
+    {
+        <div class="mt-7">
+            @ChildContent
+        </div>
+    }
+    else if (!string.IsNullOrEmpty(ButtonText) && !string.IsNullOrEmpty(ButtonLink))
+    {
+        <a href="@ButtonLink" class="mt-7 inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-primary px-6 font-label-md text-label-md font-semibold text-on-primary transition-colors hover:bg-neutral-800">
+            @if (!string.IsNullOrEmpty(ButtonIcon))
+            {
+                <span class="material-symbols-outlined text-[18px]" aria-hidden="true">@ButtonIcon</span>
+            }
+            @ButtonText
+        </a>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Icon { get; set; } = "inventory_2";
+
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = "";
+
+    [Parameter]
+    public string? Description { get; set; }
+
+    [Parameter]
+    public string? ButtonText { get; set; }
+
+    [Parameter]
+    public string? ButtonLink { get; set; }
+
+    [Parameter]
+    public string? ButtonIcon { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    [Parameter]
+    public string Class { get; set; } = "";
+}

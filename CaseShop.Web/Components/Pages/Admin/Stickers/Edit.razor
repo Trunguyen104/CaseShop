@@ -1,0 +1,230 @@
+@page "/admin/stickers/edit/{Id:guid}"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Admin")]
+@using CaseShop.Web.DTOs
+@using CaseShop.Web.Services
+@inject IStickerService StickerService
+@inject IStorageService StorageService
+@inject NavigationManager NavigationManager
+
+<PageTitle>Sửa Sticker - Admin</PageTitle>
+
+<AdminShell ActiveSection="stickers">
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom">
+        <div>
+            <h1 class="h3 mb-0">Chỉnh sửa Sticker</h1>
+        </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <p><em>Đang tải thông tin sticker...</em></p>
+    }
+    else if (notFound)
+    {
+        <div class="alert alert-warning">
+            <h4 class="alert-heading">Không tìm thấy sticker!</h4>
+            <p>Sticker bạn muốn chỉnh sửa không tồn tại hoặc đã bị xóa.</p>
+            <hr>
+            <a href="/admin/stickers" class="btn btn-secondary">Trở lại danh sách</a>
+        </div>
+    }
+    else
+    {
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card shadow-sm border-0">
+                    <div class="card-body p-4">
+                        @if (errorMessage != null)
+                        {
+                            <div class="alert alert-danger">@errorMessage</div>
+                        }
+
+                        <EditForm Model="@dto" OnValidSubmit="HandleValidSubmit" FormName="editStickerForm">
+                            <DataAnnotationsValidator />
+                            
+                            <div class="mb-3">
+                                <label for="name" class="form-label font-semibold">Tên sticker <span class="text-danger">*</span></label>
+                                <InputText id="name" class="form-control px-3 py-2 border rounded-md" @bind-Value="dto.Name" />
+                                <ValidationMessage For="@(() => dto.Name)" class="text-danger" />
+                            </div>
+
+
+                            <div class="mb-3">
+                                <label for="imageFile" class="form-label font-semibold">Hình ảnh sticker (Tối đa 5MB, JPG/PNG/WEBP)</label>
+                                <InputFile id="imageFile" class="form-control px-3 py-2 border rounded-md" OnChange="HandleFileSelected" accept=".jpg,.jpeg,.png,.webp" />
+                                @if (fileErrorMessage != null)
+                                {
+                                    <div class="text-danger small mt-1">@fileErrorMessage</div>
+                                }
+                            </div>
+
+                            <div class="mb-4 form-check form-switch">
+                                <InputCheckbox id="isActive" class="form-check-input" @bind-Value="dto.IsActive" />
+                                <label class="form-check-label" for="isActive">Kích hoạt (Hiển thị cho khách hàng)</label>
+                            </div>
+
+                            <div class="d-flex justify-content-end gap-2">
+                                <a href="/admin/stickers" class="btn btn-secondary">Hủy</a>
+                                <button type="submit" class="btn btn-primary" disabled="@isSubmitting">
+                                    @if (isSubmitting)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                                        <span>Đang lưu...</span>
+                                    }
+                                    else
+                                    {
+                                        <span>Cập nhật sticker</span>
+                                    }
+                                </button>
+                            </div>
+                        </EditForm>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card shadow-sm border-0 mb-4">
+                    <div class="card-header bg-light">
+                        <h5 class="card-title mb-0 h6">Hình ảnh hiện tại</h5>
+                    </div>
+                    <div class="card-body text-center p-3">
+                        @if (!string.IsNullOrEmpty(imagePreviewUrl ?? dto.ImageUrl))
+                        {
+                            <img src="@(imagePreviewUrl ?? dto.ImageUrl)" alt="@dto.Name" class="img-fluid rounded" style="max-height: 250px;" />
+                        }
+                        else
+                        {
+                            <div class="bg-light border rounded d-flex align-items-center justify-content-center text-muted w-100" style="height: 200px;">
+                                <span>Chưa có hình ảnh</span>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+</AdminShell>
+
+@code {
+    [Parameter]
+    public Guid Id { get; set; }
+
+    private StickerCreateUpdateDto dto = new();
+    private bool isLoading = true;
+    private bool notFound = false;
+    private bool isSubmitting = false;
+    private string? errorMessage;
+    private string? fileErrorMessage;
+    private IBrowserFile? selectedFile;
+    private string? imagePreviewUrl;
+
+    protected override async Task OnInitializedAsync()
+    {
+        isLoading = true;
+        try
+        {
+            var sticker = await StickerService.GetStickerByIdAsync(Id);
+            if (sticker == null)
+            {
+                notFound = true;
+            }
+            else
+            {
+                dto = new StickerCreateUpdateDto
+                {
+                    Name = sticker.Name,
+                    ImageUrl = sticker.ImageUrl,
+                    ImagePublicId = sticker.ImagePublicId,
+                    IsActive = sticker.IsActive
+                };
+            }
+        }
+        catch (Exception)
+        {
+            errorMessage = "Đã xảy ra lỗi khi tải dữ liệu sticker.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        fileErrorMessage = null;
+        var file = e.File;
+        
+        if (file != null)
+        {
+            if (!StorageService.IsValidImageFile(file.Name, file.ContentType, file.Size))
+            {
+                fileErrorMessage = "Định dạng file không hợp lệ hoặc kích thước vượt quá 5MB.";
+                selectedFile = null;
+            }
+            else
+            {
+                selectedFile = file;
+                try
+                {
+                    var maxAllowedSize = 5 * 1024 * 1024;
+                    using var stream = file.OpenReadStream(maxAllowedSize);
+                    using var ms = new MemoryStream();
+                    await stream.CopyToAsync(ms);
+                    var base64 = Convert.ToBase64String(ms.ToArray());
+                    imagePreviewUrl = $"data:{file.ContentType};base64,{base64}";
+                }
+                catch (Exception)
+                {
+                    fileErrorMessage = "Không thể hiển thị xem trước hình ảnh.";
+                }
+            }
+        }
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        if (fileErrorMessage != null) return;
+
+        isSubmitting = true;
+        errorMessage = null;
+
+        string? oldPublicId = null;
+        bool hasNewUpload = false;
+
+        try
+        {
+            if (selectedFile != null)
+            {
+                oldPublicId = dto.ImagePublicId;
+                
+                var maxAllowedSize = 5 * 1024 * 1024;
+                using var stream = selectedFile.OpenReadStream(maxAllowedSize);
+                var uploadResult = await StorageService.UploadFileAsync(stream, selectedFile.Name, selectedFile.ContentType, "caseshop/stickers");
+                
+                dto.ImageUrl = uploadResult.FileUrl;
+                dto.ImagePublicId = uploadResult.PublicId;
+                hasNewUpload = true;
+            }
+
+            await StickerService.UpdateStickerAsync(Id, dto);
+
+            if (hasNewUpload && !string.IsNullOrEmpty(oldPublicId))
+            {
+                await StorageService.DeleteFileAsync(oldPublicId);
+            }
+
+            NavigationManager.NavigateTo("/admin/stickers");
+        }
+        catch (Exception ex)
+        {
+            _ = ex; // exception logged by ASP.NET Core pipeline
+            errorMessage = "Không thể cập nhật sticker. Vui lòng thử lại.";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+}

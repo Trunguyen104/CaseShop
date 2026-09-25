@@ -1,0 +1,291 @@
+@page "/admin/orders/{Id:guid}"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Admin")]
+@using CaseShop.Web.DTOs
+@using CaseShop.Web.Entities
+@using CaseShop.Web.Services
+@using CaseShop.Web.Components.Shared.Admin
+@using CaseShop.Web.Components.Pages.Admin.Orders.Components
+@inject IOrderService OrderService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JS
+
+<PageTitle>Chi tiết Đơn hàng @(_order?.OrderCode ?? "") - CaseShop Admin</PageTitle>
+
+<AdminShell ActiveSection="orders">
+    <div class="w-full max-w-7xl mx-auto space-y-6">
+        
+        <!-- Header -->
+        <AdminPageHeader Title="@($"Đơn hàng: {(_order?.OrderCode ?? "Đang tải...")}")" 
+                         Subtitle="@($"Mã hệ thống: {Id}")">
+            <div class="flex items-center gap-2 flex-wrap">
+                <a href="/admin/orders" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface transition-colors font-label-md text-label-md">
+                    <span class="material-symbols-outlined text-[18px]">arrow_back</span>
+                    <span>Quay lại danh sách</span>
+                </a>
+                @if (_order != null)
+                {
+                    <button type="button" @onclick="PrintOrder" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-surface-container-lowest border border-outline-variant hover:bg-surface-container text-on-surface transition-colors font-label-md text-label-md shadow-sm">
+                        <span class="material-symbols-outlined text-[18px]">print</span>
+                        <span>In đơn hàng</span>
+                    </button>
+                    <button type="button" @onclick="CopyOrderCode" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-surface-container-lowest border border-outline-variant hover:bg-surface-container text-on-surface transition-colors font-label-md text-label-md shadow-sm" title="Sao chép mã đơn">
+                        <span class="material-symbols-outlined text-[18px]">content_copy</span>
+                        <span>Sao chép mã</span>
+                    </button>
+                }
+            </div>
+        </AdminPageHeader>
+
+        <!-- Feedback Messages -->
+        @if (!string.IsNullOrEmpty(_copiedToast))
+        {
+            <div class="fixed top-20 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 bg-neutral-900 text-white rounded-xl shadow-xl font-label-md text-xs flex items-center gap-2 animate-in fade-in slide-in-from-top-2">
+                <span class="material-symbols-outlined text-[16px] text-emerald-400">check_circle</span>
+                <span>@_copiedToast</span>
+            </div>
+        }
+
+        @if (_updateMessage != null)
+        {
+            <div class="p-4 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 rounded-xl flex items-center justify-between gap-3 animate-in fade-in">
+                <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-[20px] text-emerald-600">check_circle</span>
+                    <span class="font-body-sm text-body-sm font-medium">@_updateMessage</span>
+                </div>
+                <button type="button" class="text-emerald-700 hover:text-emerald-900" @onclick="() => _updateMessage = null">
+                    <span class="material-symbols-outlined text-[18px]">close</span>
+                </button>
+            </div>
+        }
+
+        @if (_updateError != null)
+        {
+            <div class="p-4 bg-error-container text-on-error-container rounded-xl flex items-center justify-between gap-3 animate-in fade-in">
+                <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-[20px] text-error">error</span>
+                    <span class="font-body-sm text-body-sm">@_updateError</span>
+                </div>
+                <button type="button" class="text-on-error-container hover:opacity-80" @onclick="() => _updateError = null">
+                    <span class="material-symbols-outlined text-[18px]">close</span>
+                </button>
+            </div>
+        }
+
+        @if (_isLoading)
+        {
+            <div class="flex flex-col items-center justify-center py-24 gap-4">
+                <AppSpinner Size="AppSpinner.SpinnerSize.Large" />
+                <p class="font-body-md text-body-md text-on-surface-variant">Đang tải thông tin đơn hàng...</p>
+            </div>
+        }
+        else if (_loadError != null)
+        {
+            <div class="p-8 bg-error-container text-on-error-container rounded-2xl text-center space-y-3 max-w-lg mx-auto">
+                <span class="material-symbols-outlined text-[48px] text-error">error_outline</span>
+                <h3 class="font-headline-sm text-headline-sm font-semibold">Không thể tải đơn hàng</h3>
+                <p class="font-body-md text-body-md">@_loadError</p>
+                <div class="pt-2">
+                    <button type="button" @onclick="LoadOrderAsync" class="px-5 py-2 rounded-xl bg-primary text-on-primary font-label-md hover:bg-neutral-800 transition-colors">
+                        Thử lại
+                    </button>
+                </div>
+            </div>
+        }
+        else if (_order != null)
+        {
+            <!-- Main 2-Column Grid -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                
+                <!-- LEFT COLUMN: Products & Custom Designs (8 cols) -->
+                <div class="lg:col-span-8 space-y-6">
+                    <OrderDetailItemsList Items="_order.Items"
+                                          TotalAmount="_order.TotalAmount"
+                                          OnPreviewRequested="OpenPreviewModal"
+                                          OnCopyProductId="CopyProductId" />
+
+                    @if (_order.Items.Any(i => i.CustomDesign != null))
+                    {
+                        <OrderDetailCustomDesigns Items="_order.Items"
+                                                  OrderCode="@_order.OrderCode"
+                                                  OnPreviewRequested="OpenPreviewModal"
+                                                  OnCopyDesignJson="CopyDesignJson" />
+                    }
+                </div>
+
+                <!-- RIGHT COLUMN: Order Status, Customer, Payment (4 cols) -->
+                <div class="lg:col-span-4 space-y-6">
+                    <OrderDetailStatusCard Status="_currentStatus"
+                                           UpdatedAt="_order.UpdatedAt"
+                                           IsUpdating="_isUpdating"
+                                           OnStatusUpdate="UpdateStatusAsync" />
+
+                    <OrderDetailCustomerCard CustomerName="@_order.CustomerName"
+                                             Phone="@_order.Phone"
+                                             Email="@_order.Email"
+                                             Address="@_order.Address"
+                                             OnCopyCustomerInfo="CopyShippingInfo" />
+
+                    <OrderDetailPaymentCard PaymentMethod="_order.PaymentMethod"
+                                            CreatedAt="_order.CreatedAt"
+                                            TotalAmount="_order.TotalAmount" />
+                </div>
+
+            </div>
+        }
+    </div>
+</AdminShell>
+
+<!-- Image Preview Modal -->
+<OrderDetailImageModal Item="_previewModalItem" OnClose="ClosePreviewModal" />
+
+@code {
+    [Parameter]
+    public Guid Id { get; set; }
+
+    private bool _isLoading = true;
+    private string? _loadError;
+    private OrderDetailDto? _order;
+
+    private OrderStatus _currentStatus;
+    private bool _isUpdating = false;
+    private string? _updateMessage;
+    private string? _updateError;
+    private string? _copiedToast;
+    private System.Threading.Timer? _toastTimer;
+
+    private OrderItemDetailDto? _previewModalItem;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadOrderAsync();
+    }
+
+    private async Task LoadOrderAsync()
+    {
+        _isLoading = true;
+        _loadError = null;
+        StateHasChanged();
+
+        try
+        {
+            _order = await OrderService.GetOrderByIdAsync(Id);
+            if (_order == null)
+            {
+                _loadError = "Không tìm thấy đơn hàng trong hệ thống.";
+            }
+            else
+            {
+                _currentStatus = _order.Status;
+            }
+        }
+        catch (Exception)
+        {
+            _loadError = "Đã có lỗi xảy ra khi tải thông tin đơn hàng.";
+        }
+        finally
+        {
+            _isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void OpenPreviewModal(OrderItemDetailDto item)
+    {
+        _previewModalItem = item;
+    }
+
+    private void ClosePreviewModal()
+    {
+        _previewModalItem = null;
+    }
+
+    private async Task CopyToClipboard(string text, string label)
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", text);
+            _copiedToast = $"Đã sao chép {label} vào bộ nhớ tạm!";
+            _toastTimer?.Dispose();
+            _toastTimer = new System.Threading.Timer(_ =>
+            {
+                _copiedToast = null;
+                InvokeAsync(StateHasChanged);
+            }, null, 2500, Timeout.Infinite);
+            StateHasChanged();
+        }
+        catch { }
+    }
+
+    private async Task CopyOrderCode()
+    {
+        if (_order != null)
+            await CopyToClipboard(_order.OrderCode, "mã đơn hàng");
+    }
+
+    private async Task CopyProductId(Guid productId)
+    {
+        await CopyToClipboard(productId.ToString(), "ID sản phẩm");
+    }
+
+    private async Task CopyDesignJson(string? json)
+    {
+        if (!string.IsNullOrEmpty(json))
+            await CopyToClipboard(json, "JSON thiết kế");
+    }
+
+    private async Task CopyShippingInfo()
+    {
+        if (_order != null)
+            await CopyToClipboard($"{_order.CustomerName} - {_order.Phone}\n{_order.Address}", "thông tin giao hàng");
+    }
+
+    private async Task PrintOrder()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("window.print");
+        }
+        catch { }
+    }
+
+    private async Task UpdateStatusAsync(OrderStatus newStatus)
+    {
+        if (_order == null) return;
+        
+        _isUpdating = true;
+        _updateMessage = null;
+        _updateError = null;
+        _currentStatus = newStatus;
+        StateHasChanged();
+
+        try
+        {
+            if (!Enum.IsDefined(typeof(OrderStatus), newStatus))
+            {
+                _updateError = "Trạng thái không hợp lệ.";
+                return;
+            }
+
+            var success = await OrderService.UpdateOrderStatusAsync(Id, newStatus);
+            if (success)
+            {
+                _updateMessage = $"Cập nhật trạng thái sang \"{OrderAdminHelpers.GetStatusDisplayName(newStatus)}\" thành công.";
+                _order = await OrderService.GetOrderByIdAsync(Id);
+            }
+            else
+            {
+                _updateError = "Không thể cập nhật trạng thái đơn hàng.";
+            }
+        }
+        catch (Exception ex)
+        {
+            _updateError = $"Đã có lỗi xảy ra: {ex.Message}";
+        }
+        finally
+        {
+            _isUpdating = false;
+            StateHasChanged();
+        }
+    }
+}

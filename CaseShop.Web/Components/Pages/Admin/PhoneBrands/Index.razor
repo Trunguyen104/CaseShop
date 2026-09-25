@@ -1,0 +1,77 @@
+@page "/admin/phone-brands"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Admin")]
+@inject IPhoneCatalogService CatalogService
+@inject IJSRuntime JS
+
+<PageTitle>Quản lý thương hiệu điện thoại - CaseShop</PageTitle>
+<AdminShell ActiveSection="phone-brands">
+    <AdminPageHeader Title="Thương hiệu điện thoại" Subtitle="Dữ liệu thiết bị">
+        <a href="/admin/phone-brands/create" class="btn btn-primary">
+            <span class="material-symbols-outlined text-[18px]">add</span>
+            <span>Thêm thương hiệu</span>
+        </a>
+    </AdminPageHeader>
+
+    @if (_loading)
+    {
+        <div class="alert alert-info" role="status">Đang tải danh sách thương hiệu...</div>
+    }
+    else if (_error)
+    {
+        <div class="alert alert-danger" role="alert">
+            Không thể tải danh sách. <button class="font-semibold underline" @onclick="LoadAsync">Thử lại</button>
+        </div>
+    }
+    else if (_items.Count == 0)
+    {
+        <AppEmptyState Icon="branding_watermark"
+                       Title="Chưa có thương hiệu"
+                       Description="Thêm thương hiệu đầu tiên để quản lý dòng điện thoại."
+                       ButtonText="Thêm thương hiệu"
+                       ButtonLink="/admin/phone-brands/create"
+                       ButtonIcon="add" />
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-striped table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th>Tên thương hiệu</th>
+                        <th>Slug</th>
+                        <th>Trạng thái</th>
+                        <th>Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in _items)
+                    {
+                        <tr>
+                            <td class="font-semibold">@item.Name</td>
+                            <td><code>@item.Slug</code></td>
+                            <td><AdminStatusBadge IsActive="item.IsActive" /></td>
+                            <td>
+                                <div class="d-flex gap-2">
+                                    <a class="btn btn-sm btn-outline-primary" href="/admin/phone-brands/edit/@item.Id">Sửa</a>
+                                    @if (item.IsActive)
+                                    {
+                                        <button class="btn btn-sm btn-outline-danger" @onclick="() => DeactivateAsync(item)">Ngừng hoạt động</button>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</AdminShell>
+
+@code {
+    private IReadOnlyList<PhoneBrandDto> _items = [];
+    private bool _loading = true, _error;
+    protected override Task OnInitializedAsync() => LoadAsync();
+    private async Task LoadAsync(){_loading=true;_error=false;try{_items=await CatalogService.GetPhoneBrandsAsync(activeOnly:false);}catch{_error=true;}finally{_loading=false;}}
+    private async Task DeactivateAsync(PhoneBrandDto item){if(!await JS.InvokeAsync<bool>("confirm",$"Ngừng thương hiệu “{item.Name}”? Dòng máy thuộc thương hiệu này vẫn được giữ lại."))return;try{await CatalogService.DeactivatePhoneBrandAsync(item.Id);await LoadAsync();}catch{_error=true;}}
+}

@@ -1,0 +1,26 @@
+<div class="mb-6 lg:mb-8 flex flex-col gap-4 sm:flex-row sm:items-end justify-between border-b border-outline-variant pb-4">
+    <div>
+        @if (!string.IsNullOrEmpty(Subtitle))
+        {
+            <p class="font-body-sm text-body-sm text-on-surface-variant mb-1 uppercase tracking-widest">@Subtitle</p>
+        }
+        <h1 class="font-headline-lg text-headline-lg-mobile lg:text-headline-lg text-on-surface font-bold tracking-tight">@Title</h1>
+    </div>
+    @if (ChildContent != null)
+    {
+        <div class="flex items-center gap-2">
+            @ChildContent
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = "";
+
+    [Parameter]
+    public string? Subtitle { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+}

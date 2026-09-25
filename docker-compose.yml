@@ -1,0 +1,19 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: caseshop-postgres
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: CaseShopDb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - caseshop_postgres_data:/var/lib/postgresql/data
+
+volumes:
+  caseshop_postgres_data:

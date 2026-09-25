@@ -1,0 +1,210 @@
+@page "/cart"
+@rendermode InteractiveServer
+@inject ICartService CartService
+
+<PageTitle>Giỏ hàng - CASESHOP</PageTitle>
+
+<div class="relative w-full overflow-hidden">
+    <div class="pointer-events-none absolute -right-24 -top-24 h-96 w-96 rounded-full bg-surface-container-high/50 blur-3xl"></div>
+
+    <section class="relative mx-auto w-full max-w-7xl px-margin-mobile py-10 lg:px-margin lg:py-14">
+        <nav aria-label="Breadcrumb" class="mb-6 flex items-center gap-2 font-label-sm text-label-sm text-on-surface-variant">
+            <a href="/" class="transition-colors hover:text-on-surface">Trang chủ</a>
+            <span class="material-symbols-outlined text-[14px]" aria-hidden="true">chevron_right</span>
+            <span class="font-semibold text-on-surface">Giỏ hàng</span>
+        </nav>
+
+        <div class="mb-8 flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+            <div>
+                <span class="font-overline text-overline uppercase tracking-widest text-on-secondary-container">Đơn hàng của bạn</span>
+                <h1 class="mt-2 font-headline-xl text-headline-xl-mobile font-bold tracking-tight text-on-surface lg:text-headline-xl">Giỏ hàng</h1>
+            </div>
+            @if (!_isLoading && _items.Count > 0)
+            {
+                <p class="font-body-md text-body-md text-on-surface-variant">@TotalQuantity sản phẩm</p>
+            }
+        </div>
+
+        @if (_isLoading)
+        {
+            <div class="rounded-xl bg-surface-container-lowest px-6 py-20 text-center shadow-sm" aria-live="polite">
+                <AppSpinner Class="mx-auto" />
+                <p class="mt-4 font-body-md text-body-md text-on-surface-variant">Đang tải giỏ hàng...</p>
+            </div>
+        }
+        else if (_loadError)
+        {
+            <div class="rounded-xl bg-error-container px-6 py-14 text-center text-on-error-container" role="alert">
+                <span class="material-symbols-outlined text-[40px]" aria-hidden="true">cloud_off</span>
+                <h2 class="mt-3 font-headline-sm text-headline-sm font-semibold">Không thể đọc giỏ hàng</h2>
+                <p class="mt-1 font-body-md text-body-md">Vui lòng tải lại trang và thử lại.</p>
+            </div>
+        }
+        else if (_items.Count == 0)
+        {
+            <AppEmptyState Icon="shopping_bag" 
+                           Title="Giỏ hàng đang trống" 
+                           Description="Khám phá bộ sưu tập và thêm những mẫu ốp bạn yêu thích vào giỏ." 
+                           ButtonText="Xem sản phẩm" 
+                           ButtonLink="/shop" 
+                           ButtonIcon="arrow_forward" />
+        }
+        else
+        {
+            <div class="grid grid-cols-1 items-start gap-7 lg:grid-cols-12">
+                <div class="space-y-4 lg:col-span-8">
+                    @foreach (var item in _items)
+                    {
+                        <article class="rounded-xl bg-surface-container-lowest p-4 shadow-sm sm:p-5">
+                            <div class="flex items-start gap-4 sm:gap-5">
+                                @if (!string.IsNullOrWhiteSpace(item.ImageUrl))
+                                {
+                                    <div class="h-24 w-24 sm:h-28 sm:w-28 shrink-0 rounded-xl bg-surface-container-low flex items-center justify-center p-1.5 border border-outline-variant/30 overflow-hidden">
+                                        <img src="@item.ImageUrl" alt="@item.ProductName" class="h-full w-full object-contain drop-shadow-sm" />
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="flex h-24 w-24 shrink-0 items-center justify-center rounded-xl bg-surface-container-low text-on-surface-variant sm:h-28 sm:w-28">
+                                        <span class="material-symbols-outlined text-[30px]" aria-hidden="true">image</span>
+                                    </div>
+                                }
+
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex items-start justify-between gap-3">
+                                        <div class="min-w-0">
+                                            <h2 class="font-headline-sm text-headline-sm font-semibold text-on-surface">@item.ProductName</h2>
+                                            @if (!string.IsNullOrWhiteSpace(item.Variant))
+                                            {
+                                                <p class="mt-1 font-body-sm text-body-sm text-on-surface-variant">@item.Variant</p>
+                                            }
+                                            @if (item.CustomDesign is not null)
+                                            {
+                                                <span class="mt-2 inline-flex items-center gap-1.5 rounded bg-surface-container px-2 py-1 font-label-sm text-label-sm text-on-surface">
+                                                    <span class="h-1.5 w-1.5 rounded-full bg-primary"></span>
+                                                    Thiết kế tùy chỉnh
+                                                </span>
+                                            }
+                                        </div>
+                                        <button type="button" aria-label="Xóa @item.ProductName khỏi giỏ hàng"
+                                                class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-on-surface-variant transition-colors hover:bg-error-container hover:text-on-error-container"
+                                                @onclick="() => RemoveAsync(item.Key)">
+                                            <span class="material-symbols-outlined text-[20px]" aria-hidden="true">delete</span>
+                                        </button>
+                                    </div>
+
+                                    <div class="mt-4 flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+                                        <div class="inline-flex w-fit items-center rounded-lg bg-surface-container-low p-1">
+                                            <button type="button" aria-label="Giảm số lượng" disabled="@(item.Quantity <= 1)"
+                                                    class="flex h-8 w-8 items-center justify-center rounded text-on-surface transition-colors hover:bg-surface-container disabled:cursor-not-allowed disabled:opacity-35"
+                                                    @onclick="() => ChangeQuantityAsync(item, -1)">
+                                                <span class="material-symbols-outlined text-[16px]">remove</span>
+                                            </button>
+                                            <span class="w-10 text-center font-label-md text-label-md font-semibold text-on-surface">@item.Quantity</span>
+                                            <button type="button" aria-label="Tăng số lượng" disabled="@(item.Quantity >= 100)"
+                                                    class="flex h-8 w-8 items-center justify-center rounded text-on-surface transition-colors hover:bg-surface-container disabled:cursor-not-allowed disabled:opacity-35"
+                                                    @onclick="() => ChangeQuantityAsync(item, 1)">
+                                                <span class="material-symbols-outlined text-[16px]">add</span>
+                                            </button>
+                                        </div>
+                                        <div class="text-left sm:text-right">
+                                            <p class="font-body-sm text-body-sm text-on-surface-variant">@item.UnitPrice.ToString("N0")₫ / sản phẩm</p>
+                                            <p class="mt-0.5 font-headline-sm text-headline-sm font-bold text-on-surface">@((item.UnitPrice * item.Quantity).ToString("N0"))₫</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </article>
+                    }
+
+                    <div class="flex flex-wrap items-center justify-between gap-3 pt-2">
+                        <a href="/shop" class="inline-flex items-center gap-2 font-label-md text-label-md font-semibold text-on-surface-variant transition-colors hover:text-on-surface">
+                            <span class="material-symbols-outlined text-[18px]" aria-hidden="true">arrow_back</span>
+                            Tiếp tục mua hàng
+                        </a>
+                        <button type="button" class="font-label-sm text-label-sm text-on-surface-variant underline underline-offset-4 transition-colors hover:text-error" @onclick="ClearAsync">
+                            Xóa toàn bộ giỏ hàng
+                        </button>
+                    </div>
+                </div>
+
+                <aside class="sticky top-24 rounded-xl bg-surface-container-lowest p-6 shadow-sm lg:col-span-4">
+                    <h2 class="font-headline-md text-headline-md font-semibold text-on-surface">Tóm tắt đơn hàng</h2>
+                    <div class="mt-6 space-y-3 border-b border-outline-variant pb-5">
+                        <div class="flex justify-between gap-4 font-body-md text-body-md text-on-surface-variant">
+                            <span>Tạm tính (@TotalQuantity sản phẩm)</span>
+                            <span class="font-medium text-on-surface">@Subtotal.ToString("N0")₫</span>
+                        </div>
+                        <div class="flex justify-between gap-4 font-body-md text-body-md text-on-surface-variant">
+                            <span>Phí vận chuyển</span>
+                            <span class="font-medium text-on-surface">Tính khi đặt hàng</span>
+                        </div>
+                    </div>
+                    <div class="flex items-end justify-between gap-4 pt-5">
+                        <div>
+                            <span class="font-label-md text-label-md font-semibold text-on-surface">Tổng cộng</span>
+                            <p class="font-body-sm text-body-sm text-on-surface-variant">Chưa gồm phí vận chuyển</p>
+                        </div>
+                        <span class="font-headline-md text-headline-md font-bold text-on-surface">@Subtotal.ToString("N0")₫</span>
+                    </div>
+                    <a href="/checkout" class="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-primary px-5 font-label-md text-label-md font-semibold text-on-primary shadow-sm transition-colors hover:bg-neutral-800">
+                        Tiến hành thanh toán
+                        <span class="material-symbols-outlined text-[18px]" aria-hidden="true">arrow_forward</span>
+                    </a>
+                    <div class="mt-4 flex items-start gap-2 rounded-lg bg-surface-container-low p-3 text-on-surface-variant">
+                        <span class="material-symbols-outlined text-[18px]" aria-hidden="true">lock</span>
+                        <p class="font-body-sm text-body-sm">Giỏ hàng chỉ được lưu trên trình duyệt này.</p>
+                    </div>
+                </aside>
+            </div>
+        }
+    </section>
+</div>
+
+@code {
+    private List<ClientCartItem> _items = new();
+    private bool _isLoading = true;
+    private bool _loadError;
+    private bool _initialized;
+
+    private int TotalQuantity => _items.Sum(item => item.Quantity);
+    private decimal Subtotal => _items.Sum(item => item.UnitPrice * item.Quantity);
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || _initialized) return;
+        _initialized = true;
+
+        try
+        {
+            _items = (await CartService.GetItemsAsync()).ToList();
+        }
+        catch
+        {
+            _loadError = true;
+        }
+        finally
+        {
+            _isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ChangeQuantityAsync(ClientCartItem item, int delta)
+    {
+        item.Quantity = Math.Clamp(item.Quantity + delta, 1, 100);
+        await CartService.UpdateQuantityAsync(item.Key, item.Quantity);
+    }
+
+    private async Task RemoveAsync(string key)
+    {
+        await CartService.RemoveAsync(key);
+        _items.RemoveAll(item => item.Key == key);
+    }
+
+    private async Task ClearAsync()
+    {
+        await CartService.ClearAsync();
+        _items.Clear();
+    }
+}

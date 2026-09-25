@@ -1,0 +1,8 @@
+.studio-action { padding: .4rem .65rem; background: #eee; border-radius: .5rem; font-size: .8rem; }
+.studio-action:hover { background: #ddd; }
+button:disabled, fieldset:disabled { opacity: .5; }
+button:disabled { cursor: not-allowed; }
+.studio-label { display: flex; flex-direction: column; gap: .4rem; font-size: .85rem; }
+input, select { width: 100%; min-width: 0; border-radius: .5rem; background: #f4f4f4; padding: .5rem; accent-color: #111; }
+input[type=color] { height: 2.75rem; }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid #555; outline-offset: 2px; }

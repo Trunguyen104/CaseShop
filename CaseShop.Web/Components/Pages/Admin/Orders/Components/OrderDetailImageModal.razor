@@ -1,0 +1,75 @@
+@using CaseShop.Web.DTOs
+@namespace CaseShop.Web.Components.Pages.Admin.Orders.Components
+
+@if (Item != null)
+{
+    var modalImg = OrderAdminHelpers.GetItemThumbnail(Item);
+
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in"
+         @onclick="() => OnClose.InvokeAsync()">
+        <div class="bg-surface-container-lowest max-w-2xl w-full rounded-2xl shadow-2xl overflow-hidden border border-outline-variant"
+             @onclick:stopPropagation="true">
+            <!-- Header -->
+            <div class="p-4 border-b border-outline-variant flex items-center justify-between">
+                <div>
+                    @{ var phoneModel = OrderAdminHelpers.GetPhoneModel(Item); }
+                    <h3 class="font-headline-sm text-base font-bold text-on-surface">@Item.ProductName</h3>
+                    <p class="font-mono text-xs text-on-surface-variant flex items-center gap-1.5 pt-0.5">
+                        <span title="@Item.ProductId">Mã SP: @OrderAdminHelpers.FormatShortId(Item.ProductId)</span>
+                        @if (!string.IsNullOrEmpty(phoneModel))
+                        {
+                            <span>•</span>
+                            <span class="text-primary font-sans font-semibold">@phoneModel</span>
+                        }
+                    </p>
+                </div>
+                <button type="button" 
+                        @onclick="() => OnClose.InvokeAsync()" 
+                        class="p-1 rounded-lg hover:bg-surface-container text-on-surface-variant hover:text-on-surface transition-colors">
+                    <span class="material-symbols-outlined text-[20px]">close</span>
+                </button>
+            </div>
+
+            <!-- Image Container -->
+            <div class="p-6 flex flex-col items-center justify-center bg-surface-container-low min-h-[350px]">
+                @if (!string.IsNullOrEmpty(modalImg))
+                {
+                    <img src="@modalImg" alt="Xem trước thiết kế" class="max-h-[450px] max-w-full object-contain drop-shadow-xl rounded-xl" />
+                }
+                else
+                {
+                    <p class="text-on-surface-variant">Không có ảnh xem trước</p>
+                }
+            </div>
+
+            <!-- Footer -->
+            <div class="p-4 border-t border-outline-variant flex items-center justify-between gap-3 bg-surface-container-lowest">
+                <div class="text-xs text-on-surface-variant">
+                    Số lượng đặt: <strong>@Item.Quantity chiếc</strong>
+                </div>
+                <div class="flex items-center gap-2">
+                    @if (!string.IsNullOrEmpty(modalImg))
+                    {
+                        <a href="@modalImg" target="_blank" download="caseshop-design.webp" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-container-high hover:bg-surface-container-highest text-on-surface text-xs font-semibold transition-colors">
+                            <span class="material-symbols-outlined text-[16px]">download</span>
+                            <span>Tải ảnh</span>
+                        </a>
+                    }
+                    <button type="button" 
+                            @onclick="() => OnClose.InvokeAsync()" 
+                            class="px-4 py-1.5 rounded-lg bg-primary text-on-primary text-xs font-semibold hover:bg-neutral-800 transition-colors">
+                        Đóng
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public OrderItemDetailDto? Item { get; set; }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+}

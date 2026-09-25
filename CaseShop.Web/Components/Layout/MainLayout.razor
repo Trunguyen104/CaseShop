@@ -1,0 +1,27 @@
+@inherits LayoutComponentBase
+@using CaseShop.Web.Components.Shared
+
+<Header />
+<main class="w-full pt-16 bg-surface min-h-[calc(100vh-4rem)]">
+    <div class="flex flex-col w-full">
+        <ErrorBoundary>
+            <ChildContent>
+                @Body
+            </ChildContent>
+            <ErrorContent Context="ex">
+                <div class="p-4 bg-red-100 text-red-900">
+                    <h3 class="font-bold">Error Details:</h3>
+                    <p>@ex.Message</p>
+                    <pre class="mt-2 text-sm overflow-auto">@ex.StackTrace</pre>
+                </div>
+            </ErrorContent>
+        </ErrorBoundary>
+    </div>
+</main>
+<Footer />
+
+<div id="blazor-error-ui">
+    An unhandled error has occurred.
+    <a href="" class="reload">Reload</a>
+    <a class="dismiss">🗙</a>
+</div>

@@ -1,0 +1,30 @@
+<div class="@_spinnerClass" role="status" aria-label="Loading">
+    <span class="sr-only">Đang tải...</span>
+</div>
+
+@code {
+    [Parameter]
+    public SpinnerSize Size { get; set; } = SpinnerSize.Medium;
+
+    [Parameter]
+    public string Class { get; set; } = "";
+
+    private string _spinnerClass => $"rounded-full border-2 border-outline-variant border-t-primary animate-spin {GetSizeClass()} {Class}".Trim();
+
+    private string GetSizeClass() => Size switch
+    {
+        SpinnerSize.Small => "w-5 h-5",
+        SpinnerSize.Medium => "w-8 h-8",
+        SpinnerSize.Large => "w-10 h-10",
+        SpinnerSize.ExtraLarge => "w-16 h-16",
+        _ => "w-8 h-8"
+    };
+
+    public enum SpinnerSize
+    {
+        Small,
+        Medium,
+        Large,
+        ExtraLarge
+    }
+}

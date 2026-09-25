@@ -1,0 +1,74 @@
+@using CaseShop.Web.Entities
+@namespace CaseShop.Web.Components.Pages.Admin.Orders.Components
+
+<div class="bg-surface-container-lowest border border-outline-variant/60 rounded-2xl shadow-sm p-5 sm:p-6 space-y-4">
+    <div class="flex items-center justify-between pb-3 border-b border-outline-variant/50">
+        <span class="font-overline text-overline uppercase tracking-wider text-on-surface-variant font-semibold">Trạng thái</span>
+        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold @OrderAdminHelpers.GetStatusBadgeStyle(Status)">
+            <span class="w-2 h-2 rounded-full @OrderAdminHelpers.GetStatusDotColor(Status)"></span>
+            <span>@OrderAdminHelpers.GetStatusDisplayName(Status)</span>
+        </span>
+    </div>
+
+    <div class="space-y-3">
+        <label class="font-label-md text-xs font-semibold text-on-surface block" for="order-status-select">
+            Chuyển đổi trạng thái đơn
+        </label>
+        <select id="order-status-select" 
+                class="w-full h-11 px-3.5 bg-surface-container-low text-on-surface font-body-md text-sm rounded-xl border border-outline-variant/80 outline-none focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer"
+                @bind="_selectedStatus" 
+                disabled="@IsUpdating">
+            @foreach (var s in Enum.GetValues<OrderStatus>())
+            {
+                <option value="@s">@OrderAdminHelpers.GetStatusDisplayName(s)</option>
+            }
+        </select>
+
+        <button type="button" 
+                class="w-full h-11 flex items-center justify-center gap-2 rounded-xl bg-primary text-on-primary font-label-md text-sm font-semibold hover:bg-neutral-800 transition-colors shadow-sm disabled:opacity-50"
+                @onclick="HandleUpdateClick" 
+                disabled="@(IsUpdating || _selectedStatus == Status)">
+            @if (IsUpdating)
+            {
+                <AppSpinner Size="AppSpinner.SpinnerSize.Small" Class="border-on-primary/30 border-t-on-primary" />
+                <span>Đang cập nhật...</span>
+            }
+            else
+            {
+                <span class="material-symbols-outlined text-[18px]">save</span>
+                <span>Cập nhật trạng thái</span>
+            }
+        </button>
+
+        <div class="text-[11px] text-on-surface-variant flex items-center justify-between pt-1">
+            <span>Cập nhật lần cuối:</span>
+            <span class="font-mono">@(UpdatedAt?.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? "Chưa có")</span>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public OrderStatus Status { get; set; }
+
+    [Parameter]
+    public DateTime? UpdatedAt { get; set; }
+
+    [Parameter]
+    public bool IsUpdating { get; set; }
+
+    [Parameter]
+    public EventCallback<OrderStatus> OnStatusUpdate { get; set; }
+
+    private OrderStatus _selectedStatus;
+
+    protected override void OnParametersSet()
+    {
+        _selectedStatus = Status;
+    }
+
+    private async Task HandleUpdateClick()
+    {
+        await OnStatusUpdate.InvokeAsync(_selectedStatus);
+    }
+}

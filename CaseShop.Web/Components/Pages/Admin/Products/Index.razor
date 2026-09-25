@@ -1,0 +1,355 @@
+@page "/admin/products"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Admin")]
+@using CaseShop.Web.DTOs
+@using CaseShop.Web.Services
+@inject IProductService ProductService
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Quản lý sản phẩm - CaseShop Admin</PageTitle>
+
+<AdminShell ActiveSection="products">
+    <div class="w-full max-w-7xl mx-auto space-y-6">
+        
+        <!-- Header -->
+        <AdminPageHeader Title="Quản lý sản phẩm" Subtitle="Danh mục & Phôi ốp">
+            <a href="/admin/products/create" class="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-on-primary hover:bg-neutral-800 transition-colors font-label-md text-label-md shadow-sm">
+                <span class="material-symbols-outlined text-[20px]">add</span>
+                <span>Thêm sản phẩm</span>
+            </a>
+        </AdminPageHeader>
+
+        <!-- Copy Feedback Toast -->
+        @if (!string.IsNullOrEmpty(_copiedToast))
+        {
+            <div class="fixed top-20 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 bg-neutral-900 text-white rounded-xl shadow-xl font-label-md text-xs flex items-center gap-2 animate-in fade-in slide-in-from-top-2">
+                <span class="material-symbols-outlined text-[16px] text-emerald-400">check_circle</span>
+                <span>@_copiedToast</span>
+            </div>
+        }
+
+        <!-- Filter & Search Card -->
+        <div class="bg-surface-container-lowest border border-outline-variant/60 rounded-2xl shadow-sm p-4 sm:p-5">
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-3.5 items-end">
+                <div class="md:col-span-7 space-y-1.5">
+                    <label class="font-label-md text-xs font-semibold text-on-surface block">Tìm kiếm sản phẩm</label>
+                    <div class="relative">
+                        <span class="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-[18px] text-on-surface-variant">search</span>
+                        <input type="text" 
+                               class="w-full h-11 pl-10 pr-3.5 bg-surface-container-low text-on-surface font-body-md text-sm rounded-xl border border-outline-variant/80 outline-none focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-on-surface-variant/60" 
+                               placeholder="Tìm theo tên sản phẩm hoặc mã ID (GUID)..." 
+                               @bind="_searchTerm" 
+                               @bind:event="oninput" />
+                    </div>
+                </div>
+
+                <div class="md:col-span-3 space-y-1.5">
+                    <label class="font-label-md text-xs font-semibold text-on-surface block">Trạng thái</label>
+                    <select class="w-full h-11 px-3.5 bg-surface-container-low text-on-surface font-body-md text-sm rounded-xl border border-outline-variant/80 outline-none focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer" 
+                            @bind="_selectedStatus">
+                        <option value="all">Tất cả sản phẩm</option>
+                        <option value="active">Đang kinh doanh</option>
+                        <option value="inactive">Đã ngừng bán</option>
+                    </select>
+                </div>
+
+                <div class="md:col-span-2">
+                    <button type="button" 
+                            class="w-full h-11 inline-flex items-center justify-center gap-1.5 px-3 rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface font-label-md text-sm transition-colors border border-outline-variant/60" 
+                            @onclick="ResetFilter" 
+                            title="Xóa bộ lọc">
+                        <span class="material-symbols-outlined text-[18px]">restart_alt</span>
+                        <span>Đặt lại</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        @if (products == null && !_error)
+        {
+            <div class="flex flex-col items-center justify-center py-20 gap-3">
+                <AppSpinner Size="AppSpinner.SpinnerSize.Large" />
+                <p class="font-body-md text-sm text-on-surface-variant">Đang tải danh sách sản phẩm...</p>
+            </div>
+        }
+        else if (_error)
+        {
+            <div class="p-6 bg-error-container text-on-error-container rounded-2xl flex items-center justify-between gap-3">
+                <div class="flex items-center gap-2.5">
+                    <span class="material-symbols-outlined text-error text-[24px]">error</span>
+                    <span class="font-body-md text-sm">Không thể tải danh sách sản phẩm.</span>
+                </div>
+                <button type="button" @onclick="LoadProductsAsync" class="px-3.5 py-1.5 bg-on-error-container text-error-container rounded-lg font-label-sm text-xs font-semibold hover:opacity-90">
+                    Thử lại
+                </button>
+            </div>
+        }
+        else if (!products!.Any())
+        {
+            <AppEmptyState Icon="inventory_2"
+                           Title="Chưa có sản phẩm nào"
+                           Description="Hãy thêm sản phẩm mới để bắt đầu kinh doanh."
+                           ButtonText="Thêm mới"
+                           ButtonLink="/admin/products/create"
+                           ButtonIcon="add" />
+        }
+        else
+        {
+            var filtered = FilteredProducts.ToList();
+
+            <!-- Products Table Card -->
+            <div class="bg-surface-container-lowest border border-outline-variant/60 rounded-2xl shadow-sm overflow-hidden">
+                <div class="p-4 border-b border-outline-variant/50 flex items-center justify-between bg-surface-container-low/30 flex-wrap gap-2">
+                    <span class="font-label-md text-xs font-semibold text-on-surface-variant">
+                        Hiển thị <strong class="text-on-surface">@filtered.Count</strong> / @products!.Count sản phẩm
+                    </span>
+                    <div class="flex items-center gap-2">
+                        <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                            <span>@products!.Count(p => p.IsActive) đang bán</span>
+                        </span>
+                        <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-surface-container text-on-surface-variant">
+                            <span class="w-1.5 h-1.5 rounded-full bg-outline"></span>
+                            <span>@products!.Count(p => !p.IsActive) ẩn</span>
+                        </span>
+                    </div>
+                </div>
+
+                @if (!filtered.Any())
+                {
+                    <div class="p-12 text-center text-on-surface-variant space-y-2">
+                        <span class="material-symbols-outlined text-[40px] text-outline">search_off</span>
+                        <p class="font-body-md text-sm">Không tìm thấy sản phẩm nào khớp với điều kiện lọc.</p>
+                        <button type="button" @onclick="ResetFilter" class="text-primary hover:underline text-xs font-semibold">
+                            Xóa bộ lọc
+                        </button>
+                    </div>
+                }
+                else
+                {
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="border-b border-outline-variant/60 bg-surface-container-low/20 font-label-md text-xs text-on-surface-variant uppercase tracking-wider">
+                                    <th class="py-3 px-4">Sản phẩm &amp; ID</th>
+                                    <th class="py-3 px-4">Giá niêm yết</th>
+                                    <th class="py-3 px-4">Trạng thái</th>
+                                    <th class="py-3 px-4">Ngày tạo</th>
+                                    <th class="py-3 px-4 text-right">Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-outline-variant/30 text-sm">
+                                @foreach (var product in filtered)
+                                {
+                                    <tr class="hover:bg-surface-container-low/40 transition-colors group">
+                                        <td class="py-3.5 px-4">
+                                            <div class="flex items-center gap-3">
+                                                <!-- Thumbnail -->
+                                                <div class="w-12 h-14 rounded-xl bg-surface-container-low border border-outline-variant/60 flex items-center justify-center p-1 shrink-0 overflow-hidden shadow-xs">
+                                                    @if (!string.IsNullOrEmpty(product.ImageUrl))
+                                                    {
+                                                        <img src="@product.ImageUrl" alt="@product.Name" class="w-full h-full object-contain" />
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="material-symbols-outlined text-[22px] text-outline">image</span>
+                                                    }
+                                                </div>
+
+                                                <!-- Title & Product ID -->
+                                                <div class="space-y-1 min-w-0">
+                                                    <div class="font-bold text-on-surface text-sm sm:text-base leading-snug">
+                                                        @product.Name
+                                                    </div>
+                                                    
+                                                    <!-- Product ID Badge with Copy -->
+                                                    <div class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-surface-container-high/60 border border-outline-variant/60 font-mono text-xs text-on-surface">
+                                                        <span class="text-on-surface-variant font-medium text-[10px]">ID:</span>
+                                                        <span class="font-semibold select-all text-[11px]">@product.Id</span>
+                                                        <button type="button" 
+                                                                @onclick="() => CopyProductId(product.Id)"
+                                                                class="p-0.5 text-on-surface-variant hover:text-primary transition-colors ml-0.5" 
+                                                                title="Sao chép ID sản phẩm">
+                                                            <span class="material-symbols-outlined text-[13px]">content_copy</span>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </td>
+
+                                        <td class="py-3.5 px-4 font-mono font-bold text-on-surface">
+                                            @product.Price.ToString("N0")₫
+                                        </td>
+
+                                        <td class="py-3.5 px-4">
+                                            @if (product.IsActive)
+                                            {
+                                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300">
+                                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                                    <span>Đang bán</span>
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-surface-container text-on-surface-variant">
+                                                    <span class="w-1.5 h-1.5 rounded-full bg-outline"></span>
+                                                    <span>Ngừng bán</span>
+                                                </span>
+                                            }
+                                        </td>
+
+                                        <td class="py-3.5 px-4 font-mono text-xs text-on-surface-variant">
+                                            @product.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy")
+                                        </td>
+
+                                        <td class="py-3.5 px-4 text-right">
+                                            <div class="inline-flex items-center gap-1.5 justify-end">
+                                                <a href="/admin/products/edit/@product.Id" 
+                                                   class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface font-label-md text-xs font-semibold transition-colors border border-outline-variant/60"
+                                                   title="Chỉnh sửa sản phẩm">
+                                                    <span class="material-symbols-outlined text-[15px]">edit</span>
+                                                    <span>Sửa</span>
+                                                </a>
+
+                                                @if (product.IsActive)
+                                                {
+                                                    <button type="button" 
+                                                            class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-surface-container hover:bg-error-container hover:text-on-error-container text-on-surface-variant font-label-md text-xs font-semibold transition-colors border border-outline-variant/60" 
+                                                            @onclick="() => DeactivateProduct(product.Id, product.Name)"
+                                                            title="Tạm ngừng kinh doanh sản phẩm này">
+                                                        <span class="material-symbols-outlined text-[15px]">pause_circle</span>
+                                                        <span>Ngừng bán</span>
+                                                    </button>
+                                                }
+                                                else
+                                                {
+                                                    <button type="button" 
+                                                            class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 font-label-md text-xs font-semibold transition-colors border border-emerald-300/40" 
+                                                            @onclick="() => ActivateProduct(product)"
+                                                            title="Kích hoạt bán lại sản phẩm này">
+                                                        <span class="material-symbols-outlined text-[15px]">play_circle</span>
+                                                        <span>Bán lại</span>
+                                                    </button>
+                                                }
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</AdminShell>
+
+@code {
+    private IReadOnlyList<ProductDto>? products;
+    private bool _error;
+
+    private string _searchTerm = string.Empty;
+    private string _selectedStatus = "all";
+    private string? _copiedToast;
+    private System.Threading.Timer? _toastTimer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProductsAsync();
+    }
+
+    private IEnumerable<ProductDto> FilteredProducts
+    {
+        get
+        {
+            if (products == null) return Enumerable.Empty<ProductDto>();
+
+            var query = products.AsEnumerable();
+
+            if (!string.IsNullOrWhiteSpace(_searchTerm))
+            {
+                var term = _searchTerm.Trim();
+                query = query.Where(p => 
+                    p.Name.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                    p.Id.ToString().Contains(term, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (_selectedStatus == "active")
+            {
+                query = query.Where(p => p.IsActive);
+            }
+            else if (_selectedStatus == "inactive")
+            {
+                query = query.Where(p => !p.IsActive);
+            }
+
+            return query;
+        }
+    }
+
+    private async Task LoadProductsAsync()
+    {
+        _error = false;
+        products = null;
+        try
+        {
+            products = await ProductService.GetAllProductsAsync();
+        }
+        catch
+        {
+            _error = true;
+        }
+    }
+
+    private void ResetFilter()
+    {
+        _searchTerm = string.Empty;
+        _selectedStatus = "all";
+    }
+
+    private async Task CopyProductId(Guid id)
+    {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", id.ToString());
+            _copiedToast = $"Đã sao chép ID: {id}";
+            _toastTimer?.Dispose();
+            _toastTimer = new System.Threading.Timer(_ =>
+            {
+                _copiedToast = null;
+                InvokeAsync(StateHasChanged);
+            }, null, 2500, Timeout.Infinite);
+            StateHasChanged();
+        }
+        catch { }
+    }
+
+    private async Task DeactivateProduct(Guid id, string name)
+    {
+        bool confirmed = await JSRuntime.InvokeAsync<bool>("confirm", $"Bạn có chắc chắn muốn ngừng bán sản phẩm \"{name}\"?");
+        if (confirmed)
+        {
+            await ProductService.DeactivateProductAsync(id);
+            await LoadProductsAsync();
+        }
+    }
+
+    private async Task ActivateProduct(ProductDto product)
+    {
+        try
+        {
+            var updateDto = new ProductCreateUpdateDto
+            {
+                Name = product.Name,
+                Description = product.Description,
+                Price = product.Price,
+                ImageUrl = product.ImageUrl,
+                ImagePublicId = product.ImagePublicId,
+                IsActive = true
+            };
+            await ProductService.UpdateProductAsync(product.Id, updateDto);
+            await LoadProductsAsync();
+        }
+        catch { }
+    }
+}

@@ -1,0 +1,121 @@
+@using CaseShop.Web.DTOs
+@namespace CaseShop.Web.Components.Pages.Admin.Orders.Components
+
+@if (CustomItems != null && CustomItems.Any())
+{
+    <div class="bg-surface-container-lowest border border-outline-variant/60 rounded-2xl shadow-sm p-5 sm:p-6 space-y-4">
+        <div class="flex items-center justify-between pb-3 border-b border-outline-variant/50">
+            <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-primary text-[22px]">draw</span>
+                <h3 class="font-headline-sm text-base font-bold text-on-surface">
+                    Bản vẽ &amp; Tệp tin In ấn (@CustomItems.Count())
+                </h3>
+            </div>
+            <span class="text-xs text-on-surface-variant">Dành cho xưởng in UV</span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            @foreach (var item in CustomItems)
+            {
+                var phoneModel = OrderAdminHelpers.GetPhoneModel(item);
+
+                <div class="bg-surface-container-low/30 border border-outline-variant/50 rounded-xl p-4 flex flex-col justify-between gap-4">
+                    <div class="space-y-3">
+                        <div class="flex items-start justify-between gap-2">
+                            <div>
+                                <h4 class="font-label-md text-sm font-bold text-on-surface line-clamp-1">
+                                    @item.ProductName
+                                </h4>
+                                @if (!string.IsNullOrEmpty(phoneModel))
+                                {
+                                    <div class="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 pt-0.5">
+                                        <span class="material-symbols-outlined text-[13px]">smartphone</span>
+                                        <span>@phoneModel</span>
+                                    </div>
+                                }
+                            </div>
+                            <span class="text-[11px] font-mono text-outline shrink-0">@item.Quantity chiếc</span>
+                        </div>
+
+                        <div class="h-48 w-full bg-surface-container-lowest rounded-lg border border-outline-variant/40 flex items-center justify-center p-2 relative group overflow-hidden cursor-pointer"
+                             @onclick="() => OnPreviewRequested.InvokeAsync(item)">
+                            @if (!string.IsNullOrEmpty(item.CustomDesign?.PreviewImageUrl))
+                            {
+                                <img src="@item.CustomDesign.PreviewImageUrl" alt="Bản xem trước" class="h-full object-contain drop-shadow" />
+                                <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white gap-2 font-label-sm text-xs">
+                                    <span class="material-symbols-outlined text-[18px]">open_in_full</span>
+                                    <span>Phóng to</span>
+                                </div>
+                            }
+                            else
+                            {
+                                <span class="text-xs text-outline">Không có ảnh xem trước</span>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="space-y-2 pt-2 border-t border-outline-variant/40">
+                        <div class="flex items-center gap-2">
+                            @if (!string.IsNullOrEmpty(item.CustomDesign?.PreviewImageUrl))
+                            {
+                                <a href="@item.CustomDesign.PreviewImageUrl" 
+                                   download="@($"caseshop-{OrderCode}-{item.Id}.webp")" 
+                                   target="_blank"
+                                   class="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-container-high hover:bg-surface-container-highest text-on-surface text-xs font-semibold transition-colors">
+                                    <span class="material-symbols-outlined text-[16px]">download</span>
+                                    <span>Tải ảnh preview</span>
+                                </a>
+                            }
+                            @if (!string.IsNullOrEmpty(item.CustomDesign?.OriginalImageUrl))
+                            {
+                                <a href="@item.CustomDesign.OriginalImageUrl" 
+                                   download="@($"caseshop-print-{OrderCode}-{item.Id}.png")" 
+                                   target="_blank"
+                                   class="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-on-primary hover:bg-neutral-800 text-xs font-semibold transition-colors shadow-sm">
+                                    <span class="material-symbols-outlined text-[16px]">print</span>
+                                    <span>Tải phôi in UV</span>
+                                </a>
+                            }
+                        </div>
+
+                        <!-- Design JSON Trigger -->
+                        @if (!string.IsNullOrEmpty(item.CustomDesign?.DesignData))
+                        {
+                            <details class="text-xs group">
+                                <summary class="cursor-pointer text-on-surface-variant hover:text-on-surface flex items-center justify-between py-1 select-none font-medium">
+                                    <span>Xem JSON tọa độ đối tượng</span>
+                                    <span class="material-symbols-outlined text-[16px] group-open:rotate-180 transition-transform">expand_more</span>
+                                </summary>
+                                <div class="mt-2 relative">
+                                    <textarea class="w-full h-24 p-2 bg-surface-container-lowest font-mono text-[11px] rounded-lg border border-outline-variant/60 outline-none resize-none select-all" readonly>@item.CustomDesign.DesignData</textarea>
+                                    <button type="button" 
+                                            @onclick="() => OnCopyDesignJson.InvokeAsync(item.CustomDesign.DesignData)"
+                                            class="absolute top-2 right-2 p-1 rounded bg-surface-container hover:bg-surface-container-high text-on-surface text-xs"
+                                            title="Sao chép JSON">
+                                        <span class="material-symbols-outlined text-[14px]">content_copy</span>
+                                    </button>
+                                </div>
+                            </details>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public IEnumerable<OrderItemDetailDto>? Items { get; set; }
+
+    [Parameter]
+    public string? OrderCode { get; set; }
+
+    [Parameter]
+    public EventCallback<OrderItemDetailDto> OnPreviewRequested { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnCopyDesignJson { get; set; }
+
+    private IEnumerable<OrderItemDetailDto>? CustomItems => Items?.Where(i => i.CustomDesign != null);
+}

@@ -1,0 +1,125 @@
+@page "/admin/stickers"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Admin")]
+@using CaseShop.Web.DTOs
+@using CaseShop.Web.Services
+@inject IStickerService StickerService
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Quản lý Sticker - CaseShop</PageTitle>
+
+<AdminShell ActiveSection="stickers">
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom">
+        <div>
+            <h1 class="h3 mb-0">Quản lý Sticker</h1>
+        </div>
+        <div>
+            <a href="/admin/stickers/create" class="btn btn-primary">
+                Thêm Sticker mới
+            </a>
+        </div>
+    </div>
+
+    @if (stickers == null && !_error)
+    {
+        <div class="alert alert-info" role="status">Đang tải danh sách sticker...</div>
+    }
+    else if (_error)
+    {
+        <div class="alert alert-danger" role="alert">
+            Không thể tải danh sách sticker. <button class="font-semibold underline" @onclick="LoadStickersAsync">Thử lại</button>
+        </div>
+    }
+    else if (!stickers!.Any())
+    {
+        <div class="alert alert-info">Chưa có sticker nào trong hệ thống.</div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-striped table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th style="width: 100px">Hình ảnh</th>
+                        <th>Tên sticker</th>
+                        <th>Trạng thái</th>
+                        <th>Hành động</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var sticker in stickers!)
+                    {
+                        <tr>
+                            <td>
+                                @if (!string.IsNullOrEmpty(sticker.ImageUrl))
+                                {
+                                    <img src="@sticker.ImageUrl" alt="@sticker.Name" class="img-thumbnail" style="width: 50px; height: 50px; object-fit: cover;" />
+                                }
+                                else
+                                {
+                                    <div class="bg-light border text-center text-muted" style="width: 50px; height: 50px; line-height: 50px;">
+                                        <small>No img</small>
+                                    </div>
+                                }
+                            </td>
+                            <td>@sticker.Name</td>
+                            <td>
+                                @if (sticker.IsActive)
+                                {
+                                    <span class="badge bg-success">Hiển thị</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary">Ẩn</span>
+                                }
+                            </td>
+                            <td>
+                                <a href="/admin/stickers/edit/@sticker.Id" class="btn btn-sm btn-outline-primary">Sửa</a>
+                                @if (sticker.IsActive)
+                                {
+                                    <button class="btn btn-sm btn-outline-danger ms-1" @onclick="() => DeactivateSticker(sticker.Id, sticker.Name)">Ngừng bán</button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+</AdminShell>
+
+@code {
+    private IReadOnlyList<StickerDto>? stickers;
+    private bool _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadStickersAsync();
+    }
+
+    private async Task LoadStickersAsync()
+    {
+        _error = false;
+        stickers = null;
+        try
+        {
+            stickers = await StickerService.GetAllStickersAsync();
+        }
+        catch
+        {
+            _error = true;
+        }
+    }
+
+    private async Task DeactivateSticker(Guid id, string name)
+    {
+        bool confirmed = await JSRuntime.InvokeAsync<bool>("confirm", $"Bạn có chắc chắn muốn ngừng bán (ẩn) sticker \"{name}\"?");
+        if (confirmed)
+        {
+            await StickerService.DeactivateStickerAsync(id);
+            await LoadStickersAsync();
+        }
+    }
+}

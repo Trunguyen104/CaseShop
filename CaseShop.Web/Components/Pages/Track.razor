@@ -1,0 +1,357 @@
+﻿@page "/track"
+@rendermode InteractiveServer
+@inject IOrderService OrderService
+@inject NavigationManager NavigationManager
+
+<PageTitle>Theo dõi đơn hàng - CaseShop</PageTitle>
+
+<div class="relative w-full overflow-hidden">
+    <div class="pointer-events-none absolute -right-24 -top-24 h-96 w-96 rounded-full bg-surface-container-high/50 blur-3xl"></div>
+    <div class="pointer-events-none absolute -left-20 top-72 h-80 w-80 rounded-full bg-secondary-container/20 blur-3xl"></div>
+
+    <section class="relative w-full py-12 lg:py-16">
+        <div class="mx-auto flex max-w-7xl flex-col items-center px-margin-mobile text-center lg:px-margin">
+            <div class="mb-4 inline-flex items-center gap-2 rounded-full bg-surface-container-low px-3 py-1.5 font-overline text-overline uppercase tracking-widest text-on-surface-variant">
+                <span class="h-1.5 w-1.5 rounded-full bg-primary"></span>
+                Trạng thái đơn hàng
+            </div>
+            <h1 class="max-w-2xl font-headline-xl text-headline-xl-mobile font-bold tracking-tight text-on-surface lg:text-headline-xl">
+                Theo dõi tiến độ đơn hàng
+            </h1>
+            <p class="mt-3 max-w-xl font-body-lg text-body-lg leading-relaxed text-on-surface-variant">
+                Nhập mã đơn hàng để kiểm tra trạng thái xử lý và các sản phẩm trong đơn của bạn.
+            </p>
+
+            <div class="mt-8 w-full max-w-[640px]">
+                <form class="flex flex-col items-stretch gap-2.5 rounded-xl bg-surface-container-lowest p-2 shadow-sm sm:flex-row"
+                      @onsubmit="HandleSearch">
+                    <div class="relative flex flex-1 items-center">
+                        <span class="material-symbols-outlined pointer-events-none absolute left-3 text-[20px] text-outline" aria-hidden="true">search</span>
+                        <input type="text"
+                               class="h-11 w-full rounded-lg bg-surface-container-low pl-10 pr-4 font-body-md text-body-md uppercase text-on-surface outline-none transition placeholder:normal-case placeholder:text-outline focus:bg-surface-container focus:ring-2 focus:ring-primary/10"
+                               placeholder="Nhập mã đơn hàng"
+                               aria-label="Mã đơn hàng"
+                               @bind="_searchInput"
+                               maxlength="50"
+                               required />
+                    </div>
+                    <button class="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-lg bg-primary px-6 font-label-md text-label-md font-semibold text-on-primary transition-colors hover:bg-neutral-800 disabled:cursor-wait disabled:opacity-70"
+                            type="submit" disabled="@_isLoading">
+                        @if (_isLoading)
+                        {
+                            <span class="h-4 w-4 animate-spin rounded-full border-2 border-on-primary/30 border-t-on-primary" aria-hidden="true"></span>
+                            <span>Đang tra cứu</span>
+                        }
+                        else
+                        {
+                            <span>Tra cứu đơn</span>
+                            <span class="material-symbols-outlined text-[18px]" aria-hidden="true">arrow_forward</span>
+                        }
+                    </button>
+                </form>
+                <p class="mt-3 font-body-sm text-body-sm text-on-surface-variant">
+                    Mã đơn hàng được gửi cho bạn sau khi đặt hàng thành công.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <section class="relative mx-auto w-full max-w-7xl px-margin-mobile pb-20 lg:px-margin">
+        @if (_isLoading)
+        {
+            <div class="rounded-xl bg-surface-container-lowest px-6 py-16 text-center shadow-sm" aria-live="polite">
+                <div class="mx-auto h-9 w-9 animate-spin rounded-full border-2 border-outline-variant border-t-primary"></div>
+                <p class="mt-4 font-body-md text-body-md text-on-surface-variant">Đang tìm thông tin đơn hàng...</p>
+            </div>
+        }
+        else if (_searchAttempted && _hasLoadError)
+        {
+            <div class="rounded-xl bg-error-container px-6 py-12 text-center text-on-error-container shadow-sm" role="alert">
+                <span class="material-symbols-outlined text-[40px]" aria-hidden="true">cloud_off</span>
+                <h2 class="mt-3 font-headline-sm text-headline-sm font-semibold">Không thể tra cứu lúc này</h2>
+                <p class="mt-1 font-body-md text-body-md">Vui lòng kiểm tra kết nối và thử lại.</p>
+            </div>
+        }
+        else if (_searchAttempted && _trackingResult == null)
+        {
+            <div class="rounded-xl bg-surface-container-lowest px-6 py-14 text-center shadow-sm" role="status">
+                <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-surface-container-low text-on-surface-variant">
+                    <span class="material-symbols-outlined text-[28px]" aria-hidden="true">search_off</span>
+                </div>
+                <h2 class="mt-4 font-headline-sm text-headline-sm font-semibold text-on-surface">Không tìm thấy đơn hàng</h2>
+                <p class="mx-auto mt-2 max-w-md font-body-md text-body-md text-on-surface-variant">
+                    Kiểm tra lại mã đơn hàng và đảm bảo bạn đã nhập đúng các ký tự.
+                </p>
+            </div>
+        }
+        else if (_trackingResult != null)
+        {
+            <div class="mb-6 overflow-hidden rounded-xl bg-surface-container-lowest shadow-sm">
+                <div class="p-6 lg:p-8">
+                    <div class="mb-7 flex flex-col justify-between gap-5 border-b border-surface-container pb-6 lg:flex-row lg:items-center">
+                        <div class="flex flex-wrap items-center gap-x-8 gap-y-4">
+                            <div>
+                                <span class="block font-overline text-overline uppercase text-on-surface-variant">Mã đơn hàng</span>
+                                <span class="mt-1 block font-headline-md text-headline-md font-bold tracking-tight text-on-surface">@_trackingResult.OrderCode</span>
+                            </div>
+                            <div class="hidden h-10 w-px bg-surface-container sm:block"></div>
+                            <div>
+                                <span class="block font-overline text-overline uppercase text-on-surface-variant">Ngày đặt</span>
+                                <span class="mt-1 block font-body-md text-body-md font-semibold text-on-surface">@_trackingResult.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3 rounded-lg bg-surface-container px-3.5 py-2.5">
+                            <span class="h-2 w-2 rounded-full @GetStatusDotClass(_trackingResult.Status)"></span>
+                            <span class="font-label-md text-label-md font-semibold text-on-surface">@GetStatusDisplayName(_trackingResult.Status)</span>
+                        </div>
+                    </div>
+
+                    @if (_trackingResult.Status == OrderStatus.Cancelled)
+                    {
+                        <div class="flex items-start gap-3 rounded-xl bg-error-container px-4 py-3 text-on-error-container" role="status">
+                            <span class="material-symbols-outlined text-[20px]" aria-hidden="true">cancel</span>
+                            <div>
+                                <p class="font-label-md text-label-md font-semibold">Đơn hàng đã hủy</p>
+                                <p class="mt-0.5 font-body-sm text-body-sm">Đơn hàng này không tiếp tục trong quy trình xử lý.</p>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div>
+                            <div class="mb-5 flex items-center justify-between">
+                                <h2 class="font-label-md text-label-md font-semibold text-on-surface">Lộ trình xử lý đơn</h2>
+                                <span class="font-label-sm text-label-sm text-on-surface-variant">Bước @GetCurrentStep(_trackingResult.Status) / 5</span>
+                            </div>
+                            <div class="hidden grid-cols-5 gap-2 md:grid">
+                                @foreach (var step in GetTrackingSteps())
+                                {
+                                    var state = GetStepState(step.Status, _trackingResult.Status);
+                                    <div class="relative flex flex-col items-start">
+                                        <div class="mb-3 flex w-full items-center">
+                                            <div class="z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full @GetStepCircleClass(state)">
+                                                <span class="material-symbols-outlined text-[17px]">@(state == StepState.Complete ? "check" : step.Icon)</span>
+                                            </div>
+                                            @if (step.Status != OrderStatus.Completed)
+                                            {
+                                                <div class="-ml-1 h-1 w-full @(state == StepState.Complete ? "bg-primary" : "bg-surface-container")"></div>
+                                            }
+                                        </div>
+                                        <span class="font-label-md text-label-md @(state == StepState.Upcoming ? "font-medium text-on-surface-variant" : "font-semibold text-on-surface")">@step.Label</span>
+                                        <span class="mt-0.5 font-body-sm text-body-sm text-on-surface-variant">@GetStepDescription(state)</span>
+                                    </div>
+                                }
+                            </div>
+
+                            <div class="space-y-3 md:hidden">
+                                @foreach (var step in GetTrackingSteps())
+                                {
+                                    var state = GetStepState(step.Status, _trackingResult.Status);
+                                    <div class="flex items-start gap-3 rounded-lg p-3 @(state == StepState.Current ? "bg-surface-container-low" : string.Empty) @(state == StepState.Upcoming ? "opacity-60" : string.Empty)">
+                                        <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full @GetStepCircleClass(state)">
+                                            <span class="material-symbols-outlined text-[15px]">@(state == StepState.Complete ? "check" : step.Icon)</span>
+                                        </div>
+                                        <div>
+                                            <p class="font-label-md text-label-md font-semibold text-on-surface">@step.Label</p>
+                                            <p class="font-body-sm text-body-sm text-on-surface-variant">@GetStepDescription(state)</p>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 gap-6 lg:grid-cols-12">
+                <div class="rounded-xl bg-surface-container-lowest p-6 shadow-sm lg:col-span-8 lg:p-8">
+                    <div class="mb-4 flex items-center justify-between border-b border-surface-container pb-4">
+                        <h2 class="font-headline-sm text-headline-sm font-semibold text-on-surface">Sản phẩm trong đơn</h2>
+                        <span class="rounded bg-surface-container px-2.5 py-1 font-label-sm text-label-sm text-on-surface">@_trackingResult.ItemCount sản phẩm</span>
+                    </div>
+                    <div class="divide-y divide-surface-container">
+                        @foreach (var item in _trackingResult.Items)
+                        {
+                            <div class="flex items-start gap-4 py-4 first:pt-0 last:pb-0">
+                                @if (!string.IsNullOrEmpty(item.PreviewImageUrl))
+                                {
+                                    <img src="@item.PreviewImageUrl" alt="@item.ProductName" class="h-20 w-20 shrink-0 rounded-lg bg-surface-container-low object-cover" />
+                                }
+                                else
+                                {
+                                    <div class="flex h-20 w-20 shrink-0 items-center justify-center rounded-lg bg-surface-container-low text-on-surface-variant">
+                                        <span class="material-symbols-outlined text-[26px]" aria-hidden="true">image</span>
+                                    </div>
+                                }
+                                <div class="min-w-0 flex-1 sm:flex sm:items-start sm:justify-between sm:gap-4">
+                                    <div>
+                                        <h3 class="font-label-md text-label-md font-semibold text-on-surface">@item.ProductName</h3>
+                                        <p class="mt-1 font-body-sm text-body-sm text-on-surface-variant">Số lượng: @item.Quantity</p>
+                                    </div>
+                                    <p class="mt-2 shrink-0 font-label-md text-label-md font-bold text-on-surface sm:mt-0">@((item.UnitPrice * item.Quantity).ToString("N0"))₫</p>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <aside class="rounded-xl bg-surface-container-lowest p-6 shadow-sm lg:col-span-4">
+                    <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-surface-container-low text-on-surface">
+                        <span class="material-symbols-outlined text-[22px]" aria-hidden="true">receipt_long</span>
+                    </div>
+                    <h2 class="mt-5 font-headline-sm text-headline-sm font-semibold text-on-surface">Tóm tắt đơn hàng</h2>
+                    <div class="mt-5 space-y-3 border-b border-surface-container pb-5">
+                        <div class="flex justify-between gap-4 font-body-sm text-body-sm text-on-surface-variant">
+                            <span>Số lượng</span>
+                            <span class="font-medium text-on-surface">@_trackingResult.ItemCount</span>
+                        </div>
+                        <div class="flex justify-between gap-4 font-body-sm text-body-sm text-on-surface-variant">
+                            <span>Trạng thái</span>
+                            <span class="text-right font-medium text-on-surface">@GetStatusDisplayName(_trackingResult.Status)</span>
+                        </div>
+                    </div>
+                    <div class="flex items-end justify-between gap-4 pt-5">
+                        <span class="font-label-md text-label-md font-semibold text-on-surface">Tổng thanh toán</span>
+                        <span class="font-headline-md text-headline-md font-bold text-on-surface">@_trackingResult.TotalAmount.ToString("N0")₫</span>
+                    </div>
+                    <div class="mt-6 rounded-lg bg-surface-container-low p-4">
+                        <p class="font-label-md text-label-md font-semibold text-on-surface">Bạn cần hỗ trợ?</p>
+                        <a href="mailto:support@caseshop.vn" class="mt-2 inline-flex items-center gap-2 font-label-sm text-label-sm text-on-surface-variant transition-colors hover:text-on-surface">
+                            <span class="material-symbols-outlined text-[17px]" aria-hidden="true">mail</span>
+                            support@caseshop.vn
+                        </a>
+                    </div>
+                </aside>
+            </div>
+        }
+    </section>
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "orderCode")]
+    public string? OrderCodeParam { get; set; }
+
+    private string _searchInput = string.Empty;
+    private bool _isLoading = false;
+    private bool _searchAttempted = false;
+    private bool _hasLoadError = false;
+    private OrderTrackingDto? _trackingResult;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!string.IsNullOrWhiteSpace(OrderCodeParam))
+        {
+            _searchInput = OrderCodeParam.Trim();
+            await PerformSearchAsync();
+        }
+    }
+
+    private async Task HandleSearch()
+    {
+        if (string.IsNullOrWhiteSpace(_searchInput)) return;
+        
+        // Update URL to enable sharing
+        _searchInput = _searchInput.Trim();
+        NavigationManager.NavigateTo($"/track?orderCode={Uri.EscapeDataString(_searchInput)}", forceLoad: false);
+        await PerformSearchAsync();
+    }
+
+    private async Task PerformSearchAsync()
+    {
+        _isLoading = true;
+        _searchAttempted = true;
+        _hasLoadError = false;
+        _trackingResult = null;
+        StateHasChanged();
+
+        try
+        {
+            _trackingResult = await OrderService.TrackOrderByCodeAsync(_searchInput);
+        }
+        catch
+        {
+            _hasLoadError = true;
+        }
+        finally
+        {
+            _isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private static string GetStatusDisplayName(OrderStatus status)
+    {
+        return status switch
+        {
+            OrderStatus.Pending => "Chờ xử lý",
+            OrderStatus.Confirmed => "Đã xác nhận",
+            OrderStatus.Producing => "Đang sản xuất",
+            OrderStatus.Shipping => "Đang giao hàng",
+            OrderStatus.Completed => "Hoàn thành",
+            OrderStatus.Cancelled => "Đã hủy",
+            _ => status.ToString()
+        };
+    }
+
+    private static string GetStatusDotClass(OrderStatus status)
+    {
+        return status switch
+        {
+            OrderStatus.Cancelled => "bg-error",
+            OrderStatus.Completed => "bg-primary",
+            _ => "bg-primary animate-pulse"
+        };
+    }
+
+    private static int GetCurrentStep(OrderStatus status) => status switch
+    {
+        OrderStatus.Pending => 1,
+        OrderStatus.Confirmed => 2,
+        OrderStatus.Producing => 3,
+        OrderStatus.Shipping => 4,
+        OrderStatus.Completed => 5,
+        _ => 1
+    };
+
+    private static IReadOnlyList<TrackingStep> GetTrackingSteps() =>
+    [
+        new(OrderStatus.Pending, "Chờ xử lý", "schedule"),
+        new(OrderStatus.Confirmed, "Đã xác nhận", "verified"),
+        new(OrderStatus.Producing, "Đang sản xuất", "palette"),
+        new(OrderStatus.Shipping, "Đang giao hàng", "local_shipping"),
+        new(OrderStatus.Completed, "Hoàn thành", "home")
+    ];
+
+    private static StepState GetStepState(OrderStatus step, OrderStatus current)
+    {
+        var stepNumber = GetCurrentStep(step);
+        var currentNumber = GetCurrentStep(current);
+        return stepNumber < currentNumber
+            ? StepState.Complete
+            : stepNumber == currentNumber ? StepState.Current : StepState.Upcoming;
+    }
+
+    private static string GetStepCircleClass(StepState state) => state switch
+    {
+        StepState.Complete => "bg-primary text-on-primary",
+        StepState.Current => "bg-primary text-on-primary ring-4 ring-surface-container",
+        _ => "bg-surface-container-high text-on-surface-variant"
+    };
+
+    private static string GetStepDescription(StepState state) => state switch
+    {
+        StepState.Complete => "Đã hoàn tất",
+        StepState.Current => "Trạng thái hiện tại",
+        _ => "Chưa bắt đầu"
+    };
+
+    private sealed record TrackingStep(OrderStatus Status, string Label, string Icon);
+
+    private enum StepState
+    {
+        Complete,
+        Current,
+        Upcoming
+    }
+}
+

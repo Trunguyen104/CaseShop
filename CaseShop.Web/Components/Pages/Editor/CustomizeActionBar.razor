@@ -1,0 +1,44 @@
+@namespace CaseShop.Web.Components.Pages.Editor
+
+<div class="flex items-center gap-2 w-full sm:w-auto justify-end">
+    @if (!PreviewMode)
+    {
+        <button class="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-surface-container-high hover:bg-surface-variant text-on-surface font-label-md text-label-md font-medium transition-colors"
+                @onclick="OnRemoveSelected" disabled="@(!EditorReady)" title="Xoá phần tử đang chọn" aria-label="Xoá phần tử đang chọn">
+            <span class="material-symbols-outlined text-[18px]">delete</span>
+            <span class="hidden md:inline">Xoá chọn</span>
+        </button>
+        <button class="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-surface-container-high hover:bg-surface-variant text-on-surface font-label-md text-label-md font-medium transition-colors"
+                @onclick="OnReset" disabled="@(!EditorReady)" title="Đặt lại thiết kế về ban đầu" aria-label="Đặt lại thiết kế">
+            <span class="material-symbols-outlined text-[18px]">restart_alt</span>
+            <span class="hidden md:inline">Đặt lại</span>
+        </button>
+    }
+    <button class="flex items-center gap-1.5 px-3 py-2 rounded-lg @(PreviewMode ? "bg-primary text-on-primary" : "bg-surface-container-high text-on-surface") font-label-md text-label-md font-medium transition-colors"
+            @onclick="OnTogglePreview" disabled="@(!EditorReady)" title="@(PreviewMode ? "Thoát chế độ xem trước" : "Xem trước thành phẩm")" aria-label="@(PreviewMode ? "Thoát xem trước" : "Xem trước")">
+        <span class="material-symbols-outlined text-[18px]">@(PreviewMode ? "edit" : "visibility")</span>
+        <span class="hidden sm:inline">@(PreviewMode ? "Thoát xem trước" : "Xem trước")</span>
+    </button>
+    <button class="flex items-center gap-2 px-4 sm:px-5 py-2 rounded-lg bg-primary hover:bg-neutral-800 text-on-primary font-label-md text-label-md font-semibold transition-all shadow-sm shrink-0"
+            @onclick="OnExport" disabled="@(!EditorReady || ExportInProgress || OrderInProgress)" title="Xuất file thiết kế PNG" aria-label="Xuất thiết kế">
+        <span class="material-symbols-outlined text-[16px]">@(ExportInProgress ? "progress_activity" : "download")</span>
+        <span>@(ExportInProgress ? "Đang xuất..." : "Xuất file")</span>
+    </button>
+    <button class="flex items-center gap-2 px-4 sm:px-5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-label-md text-label-md font-semibold transition-all shadow-md shrink-0 cursor-pointer"
+            @onclick="OnOrder" disabled="@(!EditorReady || OrderInProgress || ExportInProgress)" title="Đặt hàng với ốp lưng vừa thiết kế" aria-label="Đặt hàng ngay">
+        <span class="material-symbols-outlined text-[18px]">@(OrderInProgress ? "progress_activity" : "shopping_bag")</span>
+        <span>@(OrderInProgress ? "Đang thêm vào giỏ..." : "Đặt hàng ngay")</span>
+    </button>
+</div>
+
+@code {
+    [Parameter] public bool EditorReady { get; set; }
+    [Parameter] public bool PreviewMode { get; set; }
+    [Parameter] public bool ExportInProgress { get; set; }
+    [Parameter] public bool OrderInProgress { get; set; }
+    [Parameter] public EventCallback OnRemoveSelected { get; set; }
+    [Parameter] public EventCallback OnReset { get; set; }
+    [Parameter] public EventCallback OnTogglePreview { get; set; }
+    [Parameter] public EventCallback OnExport { get; set; }
+    [Parameter] public EventCallback OnOrder { get; set; }
+}

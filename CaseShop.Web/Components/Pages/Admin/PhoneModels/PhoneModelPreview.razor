@@ -1,0 +1,462 @@
+@namespace CaseShop.Web.Components.Pages.Admin.PhoneModels
+@using CaseShop.Web.DTOs
+
+<div class="card shadow-lg border border-outline-variant/30 overflow-hidden bg-surface-container-lowest rounded-2xl">
+    <!-- Header -->
+    <div class="card-header bg-surface-container-low/80 border-bottom py-3.5 px-5 flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+            <span class="material-symbols-outlined text-primary text-[22px]">smartphone</span>
+            <div>
+                <h6 class="font-semibold text-on-surface text-sm mb-0">Bản vẽ trực quan (Live Preview)</h6>
+                <p class="text-[11px] text-on-surface-variant mb-0">Tự động cập nhật theo thông số bên trái</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-2">
+            @if (IsAnyOverflow)
+            {
+                <span class="text-xs px-2.5 py-1 rounded-full bg-error-container text-on-error-container font-medium flex items-center gap-1">
+                    <span class="material-symbols-outlined text-[14px]">warning</span>
+                    Tràn viền
+                </span>
+            }
+            else
+            {
+                <span class="text-xs px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 font-medium flex items-center gap-1">
+                    <span class="material-symbols-outlined text-[14px]">check_circle</span>
+                    Kích thước chuẩn
+                </span>
+            }
+            <span class="text-xs px-2.5 py-1 rounded-full bg-primary/10 text-primary font-mono font-semibold">
+                @(W) × @(H) mm
+            </span>
+        </div>
+    </div>
+
+    <div class="card-body p-4 sm:p-5 flex flex-col items-center bg-surface-container-lowest">
+        <!-- SVG Canvas Viewer (Kích thước lớn 540px - 620px, sắc nét) -->
+        <div class="w-full flex items-center justify-center p-8 rounded-xl bg-white border border-outline-variant/40 shadow-inner relative overflow-hidden" 
+             style="min-height: 520px; height: clamp(520px, 68vh, 640px);">
+            
+            <!-- Dimension scale badge on canvas -->
+            <div class="absolute top-1 left-3 z-10 flex items-center gap-2">
+                <span class="text-[11px] px-2 py-0.5 rounded bg-black/60 backdrop-blur text-neutral-300 font-mono border border-white/10">
+                    Tỉ lệ: @(AspectRatio):1
+                </span>
+                <span class="text-[11px] px-2 py-0.5 rounded bg-black/60 backdrop-blur text-neutral-300 font-mono border border-white/10">
+                    Bo góc viền: @(R) mm
+                </span>
+            </div>
+
+            <svg viewBox="-10 -10 @(W + 20) @(H + 20)" 
+                 class="h-full w-auto max-w-full drop-shadow-2xl transition-all duration-150 select-none"
+                 style="aspect-ratio: @(W + 20) / @(H + 20);"
+                 preserveAspectRatio="xMidYMid meet">
+                
+                <defs>
+                    <!-- Blueprint Engineering Grid -->
+                    <pattern id="preview-grid" width="20" height="20" patternUnits="userSpaceOnUse">
+                        <path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="0.8"/>
+                    </pattern>
+                    <pattern id="preview-grid-major" width="100" height="100" patternUnits="userSpaceOnUse">
+                        <path d="M 100 0 L 0 0 0 100" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1.2"/>
+                    </pattern>
+
+                    <!-- Shadow Filters -->
+                    <filter id="case-glow" x="-15%" y="-15%" width="130%" height="130%">
+                        <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#000000" flood-opacity="0.6" />
+                    </filter>
+                    <filter id="camera-shadow" x="-20%" y="-20%" width="140%" height="140%">
+                        <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000000" flood-opacity="0.75" />
+                    </filter>
+                </defs>
+
+                <!-- Grid Background -->
+                <rect x="-10" y="-10" width="@(W + 20)" height="@(H + 20)" fill="url(#preview-grid)" />
+                <rect x="-10" y="-10" width="@(W + 20)" height="@(H + 20)" fill="url(#preview-grid-major)" />
+
+                <!-- Bleed boundary (if defined) -->
+                @if (HasBleed)
+                {
+                    <rect x="@(-Model.BleedLeft)" y="@(-Model.BleedTop)" 
+                          width="@(W + Model.BleedLeft + Model.BleedRight)" 
+                          height="@(H + Model.BleedTop + Model.BleedBottom)" 
+                          rx="@(R + 2)" ry="@(R + 2)"
+                          fill="none" 
+                          stroke="#ef4444" 
+                          stroke-width="1" 
+                          stroke-dasharray="3,3" 
+                          opacity="0.5" />
+                }
+
+                <!-- Main Outer Phone Case Body (Đường line trong suốt) -->
+                <rect x="0" y="0" 
+                      width="@W" height="@H" 
+                      rx="@R" ry="@R" 
+                      fill="none" 
+                      stroke="#cbd5e1" 
+                      stroke-width="2.5" />
+
+                <!-- Inner Bezel Accent Line (Đường line viền mép trong suốt) -->
+                <rect x="5" y="5" 
+                      width="@(Math.Max(0, W - 10))" height="@(Math.Max(0, H - 10))" 
+                      rx="@(Math.Max(2, R - 4))" ry="@(Math.Max(2, R - 4))" 
+                      fill="none" 
+                      stroke="rgba(255, 255, 255, 0.2)" 
+                      stroke-width="1.2" />
+
+                <!-- Print Area Guide (Đường line đứt nét vàng cam, nền trong suốt) -->
+                @if (HasPrintArea)
+                {
+                    <g>
+                        <rect x="@Model.PrintAreaX" y="@Model.PrintAreaY" 
+                              width="@Model.PrintAreaWidth" height="@Model.PrintAreaHeight" 
+                              fill="none" 
+                              stroke="#f59e0b" 
+                              stroke-width="2" 
+                              stroke-dasharray="8,5" />
+                        <!-- <svg:text x="@(Model.PrintAreaX + 8)" y="@(Model.PrintAreaY + 18)" 
+                                  fill="#f59e0b" 
+                                  font-size="12" 
+                                  font-family="system-ui, sans-serif" 
+                                  font-weight="700"
+                                  letter-spacing="0.5">VÙNG IN</svg:text> -->
+                    </g>
+                }
+
+                <!-- Safe Area Guide (Đường line đứt nét xanh lam, nền trong suốt) -->
+                @if (HasSafeArea)
+                {
+                    <g>
+                        <rect x="@Model.SafeAreaX" y="@Model.SafeAreaY" 
+                              width="@Model.SafeAreaWidth" height="@Model.SafeAreaHeight" 
+                              fill="none" 
+                              stroke="#38bdf8" 
+                              stroke-width="2" 
+                              stroke-dasharray="6,4" />
+                        <!-- <svg:text x="@(Model.SafeAreaX + 8)" y="@(Model.SafeAreaY + 18)" 
+                                  fill="#38bdf8" 
+                                  font-size="12" 
+                                  font-family="system-ui, sans-serif" 
+                                  font-weight="700"
+                                  letter-spacing="0.5">VÙNG AN TOÀN</svg:text> -->
+                    </g>
+                }
+
+                <!-- Camera Cutout Bump (Đường line cụm camera, nền trong suốt) -->
+                @if (HasCameraCutout)
+                {
+                    <g>
+                        <!-- Khung viền ngoài cụm camera (Line) -->
+                        <rect x="@Model.CameraCutoutX" y="@Model.CameraCutoutY" 
+                              width="@Model.CameraCutoutWidth" height="@Model.CameraCutoutHeight" 
+                              rx="@CamR" ry="@CamR" 
+                              fill="none" 
+                              stroke="#f43f5e" 
+                              stroke-width="2.2" />
+
+                        <!-- Đường viền vát cạnh bên trong (Line) -->
+                        <rect x="@(Model.CameraCutoutX + 2.5m)" y="@(Model.CameraCutoutY + 2.5m)" 
+                              width="@(Math.Max(0, Model.CameraCutoutWidth - 5m))" height="@(Math.Max(0, Model.CameraCutoutHeight - 5m))" 
+                              rx="@(Math.Max(1, CamR - 2m))" ry="@(Math.Max(1, CamR - 2m))" 
+                              fill="none" 
+                              stroke="rgba(244, 63, 94, 0.4)" 
+                              stroke-width="1" />
+
+                        <!-- Nhãn kích thước cụm camera -->
+                        <!-- <svg:text x="@(Model.CameraCutoutX + Model.CameraCutoutWidth / 2m)" 
+                                  y="@(Model.CameraCutoutY + Model.CameraCutoutHeight - 5m)" 
+                                  fill="#f43f5e" 
+                                  font-size="9" 
+                                  text-anchor="middle"
+                                  font-family="monospace">
+                            @($"{Model.CameraCutoutWidth}×{Model.CameraCutoutHeight}")
+                        </svg:text> -->
+
+                        <!-- Các ống kính camera dạng đường line trong suốt -->
+                        @if (IsCircleCamera)
+                        {
+                            <!-- Module camera tròn lớn (ví dụ Xiaomi 14 Ultra) -->
+                            var r = Model.CameraCutoutWidth / 2m;
+                            var cx = Model.CameraCutoutX + r;
+                            var cy = Model.CameraCutoutY + r;
+                            var lensR = r * 0.25m;
+
+                            <circle cx="@cx" cy="@cy" r="@(r * 0.82m)" fill="none" stroke="rgba(244,63,94,0.4)" stroke-width="1" stroke-dasharray="4,2" />
+                            <circle cx="@cx" cy="@cy" r="@(r * 0.45m)" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="1" />
+
+                            <circle cx="@(cx - r * 0.38m)" cy="@(cy - r * 0.38m)" r="@lensR" fill="none" stroke="#fb7185" stroke-width="1.6" />
+                            <circle cx="@(cx - r * 0.38m)" cy="@(cy - r * 0.38m)" r="@(lensR * 0.5m)" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="1" />
+
+                            <circle cx="@(cx + r * 0.38m)" cy="@(cy - r * 0.38m)" r="@lensR" fill="none" stroke="#fb7185" stroke-width="1.6" />
+                            <circle cx="@(cx + r * 0.38m)" cy="@(cy - r * 0.38m)" r="@(lensR * 0.5m)" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="1" />
+
+                            <circle cx="@(cx - r * 0.38m)" cy="@(cy + r * 0.38m)" r="@lensR" fill="none" stroke="#fb7185" stroke-width="1.6" />
+                            <circle cx="@(cx - r * 0.38m)" cy="@(cy + r * 0.38m)" r="@(lensR * 0.5m)" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="1" />
+
+                            <circle cx="@(cx + r * 0.38m)" cy="@(cy + r * 0.38m)" r="@lensR" fill="none" stroke="#fb7185" stroke-width="1.6" />
+                            <circle cx="@(cx + r * 0.38m)" cy="@(cy + r * 0.38m)" r="@(lensR * 0.5m)" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="1" />
+
+                            <!-- Tâm quang học -->
+                            <line x1="@(cx - 4)" y1="@cy" x2="@(cx + 4)" y2="@cy" stroke="rgba(255,255,255,0.6)" stroke-width="0.8" />
+                            <line x1="@cx" y1="@(cy - 4)" x2="@cx" y2="@(cy + 4)" stroke="rgba(255,255,255,0.6)" stroke-width="0.8" />
+                        }
+                        else if (IsIPhone16Vertical)
+                        {
+                            <!-- Dạng dọc 2 mắt (iPhone 16 thường) -->
+                            var lensRadius = Math.Min(Model.CameraCutoutWidth * 0.34m, 24m);
+                            var centerX = Model.CameraCutoutX + Model.CameraCutoutWidth / 2m;
+                            var topOffset = Model.CameraCutoutY + Model.CameraCutoutHeight * 0.28m;
+                            var botOffset = Model.CameraCutoutY + Model.CameraCutoutHeight * 0.72m;
+
+                            <!-- Viền vát bo cong pill trong -->
+                            <rect x="@(Model.CameraCutoutX + 3m)" y="@(Model.CameraCutoutY + 3m)" 
+                                  width="@(Math.Max(0, Model.CameraCutoutWidth - 6m))" height="@(Math.Max(0, Model.CameraCutoutHeight - 6m))" 
+                                  rx="@(Math.Max(1, CamR - 3m))" ry="@(Math.Max(1, CamR - 3m))" 
+                                  fill="none" stroke="rgba(244,63,94,0.35)" stroke-width="1" />
+
+                            <!-- Lens 1 (Top) -->
+                            <circle cx="@centerX" cy="@topOffset" r="@lensRadius" fill="none" stroke="#fb7185" stroke-width="1.8" />
+                            <circle cx="@centerX" cy="@topOffset" r="@(lensRadius * 0.55m)" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="1" />
+                            <line x1="@(centerX - 3)" y1="@topOffset" x2="@(centerX + 3)" y2="@topOffset" stroke="rgba(255,255,255,0.6)" stroke-width="0.8" />
+                            <line x1="@centerX" y1="@(topOffset - 3)" x2="@centerX" y2="@(topOffset + 3)" stroke="rgba(255,255,255,0.6)" stroke-width="0.8" />
+
+                            <!-- Lens 2 (Bottom) -->
+                            <circle cx="@centerX" cy="@botOffset" r="@lensRadius" fill="none" stroke="#fb7185" stroke-width="1.8" />
+                            <circle cx="@centerX" cy="@botOffset" r="@(lensRadius * 0.55m)" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="1" />
+                            <line x1="@(centerX - 3)" y1="@botOffset" x2="@(centerX + 3)" y2="@botOffset" stroke="rgba(255,255,255,0.6)" stroke-width="0.8" />
+                            <line x1="@centerX" y1="@(botOffset - 3)" x2="@centerX" y2="@(botOffset + 3)" stroke="rgba(255,255,255,0.6)" stroke-width="0.8" />
+                        }
+                        else if (IsVerticalCamera)
+                        {
+                            <!-- Dạng dọc 3 mắt (Galaxy S24 / S25, Galaxy Ultra) -->
+                            var lensRadius = Math.Min(Model.CameraCutoutWidth * 0.32m, 22m);
+                            var centerX = Model.CameraCutoutX + Model.CameraCutoutWidth / 2m;
+                            var topOffset = Model.CameraCutoutY + Model.CameraCutoutHeight * 0.22m;
+                            var midOffset = Model.CameraCutoutY + Model.CameraCutoutHeight * 0.48m;
+                            var botOffset = Model.CameraCutoutY + Model.CameraCutoutHeight * 0.74m;
+
+                            <!-- Lens 1 (Top) -->
+                            <circle cx="@centerX" cy="@topOffset" r="@lensRadius" fill="none" stroke="#fb7185" stroke-width="1.8" />
+                            <circle cx="@centerX" cy="@topOffset" r="@(lensRadius * 0.55m)" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="1" />
+                            <line x1="@(centerX - 3)" y1="@topOffset" x2="@(centerX + 3)" y2="@topOffset" stroke="rgba(255,255,255,0.6)" stroke-width="0.8" />
+                            <line x1="@centerX" y1="@(topOffset - 3)" x2="@centerX" y2="@(topOffset + 3)" stroke="rgba(255,255,255,0.6)" stroke-width="0.8" />
+
+                            <!-- Lens 2 (Middle) -->
+                            <circle cx="@centerX" cy="@midOffset" r="@lensRadius" fill="none" stroke="#fb7185" stroke-width="1.8" />
+                            <circle cx="@centerX" cy="@midOffset" r="@(lensRadius * 0.55m)" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="1" />
+                            <line x1="@(centerX - 3)" y1="@midOffset" x2="@(centerX + 3)" y2="@midOffset" stroke="rgba(255,255,255,0.6)" stroke-width="0.8" />
+                            <line x1="@centerX" y1="@(midOffset - 3)" x2="@centerX" y2="@(midOffset + 3)" stroke="rgba(255,255,255,0.6)" stroke-width="0.8" />
+
+                            <!-- Lens 3 (Bottom) -->
+                            <circle cx="@centerX" cy="@botOffset" r="@lensRadius" fill="none" stroke="#fb7185" stroke-width="1.8" />
+                            <circle cx="@centerX" cy="@botOffset" r="@(lensRadius * 0.55m)" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="1" />
+                            <line x1="@(centerX - 3)" y1="@botOffset" x2="@(centerX + 3)" y2="@botOffset" stroke="rgba(255,255,255,0.6)" stroke-width="0.8" />
+                            <line x1="@centerX" y1="@(botOffset - 3)" x2="@centerX" y2="@(botOffset + 3)" stroke="rgba(255,255,255,0.6)" stroke-width="0.8" />
+                        }
+                        else if (IsHorizontalCamera)
+                        {
+                            <!-- Dạng dải ngang (Google Pixel visor) -->
+                            var lensRadius = Math.Min(Model.CameraCutoutHeight * 0.32m, 20m);
+                            var centerY = Model.CameraCutoutY + Model.CameraCutoutHeight / 2m;
+                            var leftOffset = Model.CameraCutoutX + Model.CameraCutoutWidth * 0.25m;
+                            var midOffset = Model.CameraCutoutX + Model.CameraCutoutWidth * 0.42m;
+                            var rightOffset = Model.CameraCutoutX + Model.CameraCutoutWidth * 0.75m;
+
+                            <!-- Khung thuốc oval bao quanh cụm 2 camera -->
+                            <rect x="@(Model.CameraCutoutX + Model.CameraCutoutWidth * 0.14m)" 
+                                  y="@(centerY - lensRadius * 1.35m)" 
+                                  width="@(Model.CameraCutoutWidth * 0.38m)" 
+                                  height="@(lensRadius * 2.7m)" 
+                                  rx="@(lensRadius * 1.35m)" ry="@(lensRadius * 1.35m)" 
+                                  fill="none" stroke="rgba(244,63,94,0.4)" stroke-width="1.2" />
+
+                            <circle cx="@leftOffset" cy="@centerY" r="@lensRadius" fill="none" stroke="#fb7185" stroke-width="1.8" />
+                            <circle cx="@leftOffset" cy="@centerY" r="@(lensRadius * 0.55m)" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="1" />
+
+                            <circle cx="@midOffset" cy="@centerY" r="@lensRadius" fill="none" stroke="#fb7185" stroke-width="1.8" />
+                            <circle cx="@midOffset" cy="@centerY" r="@(lensRadius * 0.55m)" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="1" />
+
+                            <!-- Vòng đèn Flash dạng line -->
+                            <circle cx="@rightOffset" cy="@centerY" r="@(lensRadius * 0.55m)" fill="none" stroke="#facc15" stroke-width="1.5" stroke-dasharray="3,2" />
+                        }
+                        else if (IsDiagonal2Lens)
+                        {
+                            <!-- Dạng 2 mắt chéo (iPhone 15 thường, iPhone 14/13) -->
+                            var lensRadius = Math.Min(Math.Min(Model.CameraCutoutWidth, Model.CameraCutoutHeight) * 0.24m, 25m);
+                            var topLeftX = Model.CameraCutoutX + Model.CameraCutoutWidth * 0.33m;
+                            var topLeftY = Model.CameraCutoutY + Model.CameraCutoutHeight * 0.33m;
+                            var botRightX = Model.CameraCutoutX + Model.CameraCutoutWidth * 0.67m;
+                            var botRightY = Model.CameraCutoutY + Model.CameraCutoutHeight * 0.67m;
+                            var topRightX = Model.CameraCutoutX + Model.CameraCutoutWidth * 0.68m;
+                            var topRightY = Model.CameraCutoutY + Model.CameraCutoutHeight * 0.30m;
+                            var botLeftX = Model.CameraCutoutX + Model.CameraCutoutWidth * 0.30m;
+                            var botLeftY = Model.CameraCutoutY + Model.CameraCutoutHeight * 0.70m;
+
+                            <!-- Lens 1 (Top Left) -->
+                            <circle cx="@topLeftX" cy="@topLeftY" r="@lensRadius" fill="none" stroke="#fb7185" stroke-width="1.8" />
+                            <circle cx="@topLeftX" cy="@topLeftY" r="@(lensRadius * 0.55m)" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="1" />
+                            <line x1="@(topLeftX - 3)" y1="@topLeftY" x2="@(topLeftX + 3)" y2="@topLeftY" stroke="rgba(255,255,255,0.6)" stroke-width="0.8" />
+                            <line x1="@topLeftX" y1="@(topLeftY - 3)" x2="@topLeftX" y2="@(topLeftY + 3)" stroke="rgba(255,255,255,0.6)" stroke-width="0.8" />
+
+                            <!-- Lens 2 (Bottom Right) -->
+                            <circle cx="@botRightX" cy="@botRightY" r="@lensRadius" fill="none" stroke="#fb7185" stroke-width="1.8" />
+                            <circle cx="@botRightX" cy="@botRightY" r="@(lensRadius * 0.55m)" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="1" />
+                            <line x1="@(botRightX - 3)" y1="@botRightY" x2="@(botRightX + 3)" y2="@botRightY" stroke="rgba(255,255,255,0.6)" stroke-width="0.8" />
+                            <line x1="@botRightX" y1="@(botRightY - 3)" x2="@botRightX" y2="@(botRightY + 3)" stroke="rgba(255,255,255,0.6)" stroke-width="0.8" />
+
+                            <!-- Flash ring dạng line (Top Right) -->
+                            <circle cx="@topRightX" cy="@topRightY" r="@(lensRadius * 0.45m)" fill="none" stroke="#facc15" stroke-width="1.5" stroke-dasharray="3,2" />
+                            <!-- Cảm biến phụ / Mic (Bottom Left) -->
+                            <circle cx="@botLeftX" cy="@botLeftY" r="@(lensRadius * 0.28m)" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="1" />
+                        }
+                        else
+                        {
+                            <!-- Dạng vuông 3 mắt tam giác (iPhone Pro 3 mắt / Xiaomi 14) -->
+                            var lensRadius = Math.Min(Math.Min(Model.CameraCutoutWidth, Model.CameraCutoutHeight) * 0.21m, 24m);
+                            var col1X = Model.CameraCutoutX + Model.CameraCutoutWidth * 0.32m;
+                            var col2X = Model.CameraCutoutX + Model.CameraCutoutWidth * 0.68m;
+                            var row1Y = Model.CameraCutoutY + Model.CameraCutoutHeight * 0.30m;
+                            var row2Y = Model.CameraCutoutY + Model.CameraCutoutHeight * 0.70m;
+                            var midY = Model.CameraCutoutY + Model.CameraCutoutHeight * 0.50m;
+
+                            <!-- Lens 1 (Top Left) -->
+                            <circle cx="@col1X" cy="@row1Y" r="@lensRadius" fill="none" stroke="#fb7185" stroke-width="1.8" />
+                            <circle cx="@col1X" cy="@row1Y" r="@(lensRadius * 0.55m)" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="1" />
+                            <line x1="@(col1X - 3)" y1="@row1Y" x2="@(col1X + 3)" y2="@row1Y" stroke="rgba(255,255,255,0.5)" stroke-width="0.8" />
+                            <line x1="@col1X" y1="@(row1Y - 3)" x2="@col1X" y2="@(row1Y + 3)" stroke="rgba(255,255,255,0.5)" stroke-width="0.8" />
+
+                            <!-- Lens 2 (Bottom Left) -->
+                            <circle cx="@col1X" cy="@row2Y" r="@lensRadius" fill="none" stroke="#fb7185" stroke-width="1.8" />
+                            <circle cx="@col1X" cy="@row2Y" r="@(lensRadius * 0.55m)" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="1" />
+                            <line x1="@(col1X - 3)" y1="@row2Y" x2="@(col1X + 3)" y2="@row2Y" stroke="rgba(255,255,255,0.5)" stroke-width="0.8" />
+                            <line x1="@col1X" y1="@(row2Y - 3)" x2="@col1X" y2="@(row2Y + 3)" stroke="rgba(255,255,255,0.5)" stroke-width="0.8" />
+
+                            <!-- Lens 3 (Middle Right) -->
+                            <circle cx="@col2X" cy="@midY" r="@lensRadius" fill="none" stroke="#fb7185" stroke-width="1.8" />
+                            <circle cx="@col2X" cy="@midY" r="@(lensRadius * 0.55m)" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="1" />
+                            <line x1="@(col2X - 3)" y1="@midY" x2="@(col2X + 3)" y2="@midY" stroke="rgba(255,255,255,0.5)" stroke-width="0.8" />
+                            <line x1="@col2X" y1="@(midY - 3)" x2="@col2X" y2="@(midY + 3)" stroke="rgba(255,255,255,0.5)" stroke-width="0.8" />
+
+                            <!-- Flash ring dạng line (Top Right) -->
+                            <circle cx="@col2X" cy="@row1Y" r="@(lensRadius * 0.42m)" fill="none" stroke="#facc15" stroke-width="1.5" stroke-dasharray="3,2" />
+                            <!-- Cảm biến phụ / LiDAR (Bottom Right) -->
+                            <circle cx="@col2X" cy="@row2Y" r="@(lensRadius * 0.32m)" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="1" />
+                        }
+                    </g>
+                }
+
+            </svg>
+        </div>
+
+        <!-- Warning alerts if any area overflows -->
+        @if (IsCameraOverflow)
+        {
+            <div class="w-full mt-3 p-3 rounded-xl bg-error-container/80 text-on-error-container text-xs flex items-center gap-2.5">
+                <span class="material-symbols-outlined text-[18px] shrink-0">error</span>
+                <span><strong>Cụm camera tràn viền:</strong> Vị trí X (@Model.CameraCutoutX) + Rộng (@Model.CameraCutoutWidth) = @(Model.CameraCutoutX + Model.CameraCutoutWidth)mm hoặc Y (@Model.CameraCutoutY) + Cao (@Model.CameraCutoutHeight) = @(Model.CameraCutoutY + Model.CameraCutoutHeight)mm vượt quá kích cỡ thân ốp (@(W)×@(H)mm)!</span>
+            </div>
+        }
+        @if (IsSafeAreaOverflow)
+        {
+            <div class="w-full mt-2.5 p-3 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-600 text-xs flex items-center gap-2.5">
+                <span class="material-symbols-outlined text-[18px] shrink-0">info</span>
+                <span><strong>Vùng an toàn tràn viền:</strong> Kích thước vùng an toàn vượt ra ngoài thân ốp!</span>
+            </div>
+        }
+        @if (IsPrintAreaOverflow)
+        {
+            <div class="w-full mt-2.5 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-600 text-xs flex items-center gap-2.5">
+                <span class="material-symbols-outlined text-[18px] shrink-0">info</span>
+                <span><strong>Vùng in tràn viền:</strong> Kích thước vùng in vượt ra ngoài kích thước thân ốp!</span>
+            </div>
+        }
+
+        <!-- Technical Specification Summary Cards (Bảng số liệu chi tiết) -->
+        <div class="w-full mt-4 pt-3.5 border-t border-outline-variant/40 grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            <div class="p-2.5 rounded-lg bg-surface-container-low/70 border border-outline-variant/30 text-center">
+                <p class="text-[10px] uppercase font-semibold text-on-surface-variant mb-0.5">Khung ốp</p>
+                <p class="font-mono text-xs font-bold text-on-surface mb-0">@(W)×@(H)</p>
+                <p class="text-[10px] text-on-surface-variant/80 mb-0">R: @(R)mm</p>
+            </div>
+            <div class="p-2.5 rounded-lg bg-surface-container-low/70 border border-outline-variant/30 text-center">
+                <p class="text-[10px] uppercase font-semibold text-rose-500 mb-0.5">Camera Cutout</p>
+                <p class="font-mono text-xs font-bold text-on-surface mb-0">@(Model.CameraCutoutWidth)×@(Model.CameraCutoutHeight)</p>
+                <p class="text-[10px] text-on-surface-variant/80 mb-0">X:@(Model.CameraCutoutX) Y:@(Model.CameraCutoutY)</p>
+            </div>
+            <div class="p-2.5 rounded-lg bg-surface-container-low/70 border border-outline-variant/30 text-center">
+                <p class="text-[10px] uppercase font-semibold text-amber-500 mb-0.5">Vùng in</p>
+                <p class="font-mono text-xs font-bold text-on-surface mb-0">@(Model.PrintAreaWidth)×@(Model.PrintAreaHeight)</p>
+                <p class="text-[10px] text-on-surface-variant/80 mb-0">X:@(Model.PrintAreaX) Y:@(Model.PrintAreaY)</p>
+            </div>
+            <div class="p-2.5 rounded-lg bg-surface-container-low/70 border border-outline-variant/30 text-center">
+                <p class="text-[10px] uppercase font-semibold text-sky-500 mb-0.5">Vùng an toàn</p>
+                <p class="font-mono text-xs font-bold text-on-surface mb-0">@(Model.SafeAreaWidth)×@(Model.SafeAreaHeight)</p>
+                <p class="text-[10px] text-on-surface-variant/80 mb-0">X:@(Model.SafeAreaX) Y:@(Model.SafeAreaY)</p>
+            </div>
+        </div>
+
+        <!-- Legend Chú thích dạng Wireframe Line -->
+        <div class="w-full mt-3 pt-2.5 flex flex-wrap items-center justify-between gap-3 text-xs text-on-surface-variant">
+            <div class="flex items-center gap-1.5">
+                <span class="w-3.5 h-3.5 rounded border-2 border-[#cbd5e1] bg-transparent"></span>
+                <span>Thân ốp</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+                <span class="w-3.5 h-3.5 rounded border-2 border-[#f43f5e] bg-transparent"></span>
+                <span>Cụm Camera</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+                <span class="w-3.5 h-0.5 border-t-2 border-dashed border-[#f59e0b]"></span>
+                <span>Vùng in</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+                <span class="w-3.5 h-0.5 border-t-2 border-dashed border-[#38bdf8]"></span>
+                <span>Vùng an toàn</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public PhoneModelCreateUpdateDto Model { get; set; } = default!;
+
+    private decimal W => Model.CanvasWidth > 0 ? Model.CanvasWidth : 350m;
+    private decimal H => Model.CanvasHeight > 0 ? Model.CanvasHeight : 700m;
+    private decimal R => Model.CornerRadius >= 0 ? Model.CornerRadius : 40m;
+    private decimal CamR => Model.CameraCutoutRadius >= 0 ? Model.CameraCutoutRadius : 16m;
+
+    private string AspectRatio => W > 0 ? Math.Round(H / W, 2).ToString("0.00") : "2.00";
+
+    private bool HasCameraCutout => Model.CameraCutoutWidth > 0 && Model.CameraCutoutHeight > 0;
+    private bool HasSafeArea => Model.SafeAreaWidth > 0 && Model.SafeAreaHeight > 0;
+    private bool HasPrintArea => Model.PrintAreaWidth > 0 && Model.PrintAreaHeight > 0;
+    private bool HasBleed => Model.BleedTop > 0 || Model.BleedRight > 0 || Model.BleedBottom > 0 || Model.BleedLeft > 0;
+
+    private bool IsCircleCamera => HasCameraCutout && 
+        Math.Abs(Model.CameraCutoutWidth - Model.CameraCutoutHeight) <= 12m && 
+        Model.CameraCutoutRadius >= Model.CameraCutoutWidth * 0.38m;
+
+    private bool IsVerticalCamera => HasCameraCutout && !IsCircleCamera && 
+        (Model.CameraCutoutHeight / Math.Max(1m, Model.CameraCutoutWidth) >= 1.35m || (Model.Slug?.Contains("galaxy") == true));
+
+    private bool IsIPhone16Vertical => IsVerticalCamera && (Model.Slug?.Contains("16") == true && Model.Slug?.Contains("pro") != true);
+
+    private bool IsHorizontalCamera => HasCameraCutout && !IsCircleCamera && 
+        (Model.CameraCutoutWidth / Math.Max(1m, Model.CameraCutoutHeight) >= 1.55m || (Model.Slug?.Contains("pixel") == true));
+
+    private bool IsDiagonal2Lens => HasCameraCutout && !IsCircleCamera && !IsVerticalCamera && !IsHorizontalCamera &&
+        ((Model.Slug?.Contains("15") == true && Model.Slug?.Contains("pro") != true) || 
+         (Model.CameraCutoutWidth <= 100m && Model.CameraCutoutHeight <= 100m && Model.Slug?.Contains("iphone") == true && Model.Slug?.Contains("pro") != true));
+
+    private bool IsCameraOverflow => HasCameraCutout && 
+        (Model.CameraCutoutX + Model.CameraCutoutWidth > W || Model.CameraCutoutY + Model.CameraCutoutHeight > H);
+
+    private bool IsSafeAreaOverflow => HasSafeArea && 
+        (Model.SafeAreaX + Model.SafeAreaWidth > W || Model.SafeAreaY + Model.SafeAreaHeight > H);
+
+    private bool IsPrintAreaOverflow => HasPrintArea && 
+        (Model.PrintAreaX + Model.PrintAreaWidth > W || Model.PrintAreaY + Model.PrintAreaHeight > H);
+
+    private bool IsAnyOverflow => IsCameraOverflow || IsSafeAreaOverflow || IsPrintAreaOverflow;
+}
+

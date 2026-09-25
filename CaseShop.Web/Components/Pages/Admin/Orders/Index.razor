@@ -1,0 +1,251 @@
+@page "/admin/orders"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Admin")]
+@using CaseShop.Web.DTOs
+@using CaseShop.Web.Entities
+@using CaseShop.Web.Services
+@using CaseShop.Web.Components.Shared.Admin
+@using CaseShop.Web.Components.Pages.Admin.Orders.Components
+@inject IOrderService OrderService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JS
+
+<PageTitle>Quản lý Đơn hàng - CaseShop Admin</PageTitle>
+
+<AdminShell ActiveSection="orders">
+    <div class="w-full max-w-7xl mx-auto space-y-6">
+        
+        <AdminPageHeader Title="Quản lý Đơn hàng" Subtitle="Kinh doanh & Vận hành" />
+
+        <!-- Copy Feedback Toast -->
+        @if (!string.IsNullOrEmpty(_copiedToast))
+        {
+            <div class="fixed top-20 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 bg-neutral-900 text-white rounded-xl shadow-xl font-label-md text-xs flex items-center gap-2 animate-in fade-in slide-in-from-top-2">
+                <span class="material-symbols-outlined text-[16px] text-emerald-400">check_circle</span>
+                <span>@_copiedToast</span>
+            </div>
+        }
+
+        <!-- Filter Card -->
+        <div class="bg-surface-container-lowest border border-outline-variant/60 rounded-2xl shadow-sm p-4 sm:p-5">
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-3.5 items-end">
+                <div class="md:col-span-6 space-y-1.5">
+                    <label class="font-label-md text-xs font-semibold text-on-surface block">Tìm kiếm đơn hàng</label>
+                    <div class="relative">
+                        <span class="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-[18px] text-on-surface-variant">search</span>
+                        <input type="text" 
+                               class="w-full h-11 pl-10 pr-3.5 bg-surface-container-low text-on-surface font-body-md text-sm rounded-xl border border-outline-variant/80 outline-none focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-on-surface-variant/60" 
+                               placeholder="Mã đơn hàng, Tên KH, Số điện thoại..." 
+                               maxlength="100" 
+                               @bind="_searchTerm" 
+                               @bind:event="oninput" 
+                               @onkeyup="HandleSearch" />
+                    </div>
+                </div>
+
+                <div class="md:col-span-3 space-y-1.5">
+                    <label class="font-label-md text-xs font-semibold text-on-surface block">Lọc trạng thái</label>
+                    <select class="w-full h-11 px-3.5 bg-surface-container-low text-on-surface font-body-md text-sm rounded-xl border border-outline-variant/80 outline-none focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer" 
+                            @bind="_selectedStatus">
+                        <option value="">-- Tất cả trạng thái --</option>
+                        @foreach (var status in Enum.GetValues<OrderStatus>())
+                        {
+                            <option value="@status">@OrderAdminHelpers.GetStatusDisplayName(status)</option>
+                        }
+                    </select>
+                </div>
+
+                <div class="md:col-span-3 flex items-center gap-2">
+                    <button type="button" 
+                            class="flex-1 h-11 inline-flex items-center justify-center gap-1.5 px-4 rounded-xl bg-primary text-on-primary font-label-md text-sm font-semibold hover:bg-neutral-800 transition-colors shadow-sm disabled:opacity-50" 
+                            @onclick="LoadOrdersAsync" 
+                            disabled="@_isLoading">
+                        <span class="material-symbols-outlined text-[18px]">filter_alt</span>
+                        <span>Lọc</span>
+                    </button>
+                    <button type="button" 
+                            class="h-11 px-3.5 inline-flex items-center justify-center rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface font-label-md text-sm transition-colors border border-outline-variant/60" 
+                            @onclick="ResetFilterAsync" 
+                            title="Xóa bộ lọc"
+                            disabled="@_isLoading">
+                        <span class="material-symbols-outlined text-[18px]">refresh</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        @if (_isLoading)
+        {
+            <div class="flex flex-col items-center justify-center py-20 gap-3">
+                <AppSpinner Size="AppSpinner.SpinnerSize.Large" />
+                <p class="font-body-md text-sm text-on-surface-variant">Đang tải danh sách đơn hàng...</p>
+            </div>
+        }
+        else if (_loadError != null)
+        {
+            <div class="p-6 bg-error-container text-on-error-container rounded-2xl flex items-center justify-between gap-3">
+                <div class="flex items-center gap-2.5">
+                    <span class="material-symbols-outlined text-error text-[24px]">error</span>
+                    <span class="font-body-md text-sm">@_loadError</span>
+                </div>
+                <button type="button" @onclick="LoadOrdersAsync" class="px-3.5 py-1.5 bg-on-error-container text-error-container rounded-lg font-label-sm text-xs font-semibold hover:opacity-90">
+                    Thử lại
+                </button>
+            </div>
+        }
+        else if (_orders == null || _orders.Count == 0)
+        {
+            <AppEmptyState Icon="receipt_long"
+                           Title="Không tìm thấy đơn hàng nào"
+                           Description="Hãy thử điều chỉnh bộ lọc hoặc từ khóa tìm kiếm."
+                           ButtonText="Xóa lọc"
+                           ButtonIcon="restart_alt"
+                           OnButtonClick="ResetFilterAsync" />
+        }
+        else
+        {
+            <!-- Orders Table Card -->
+            <div class="bg-surface-container-lowest border border-outline-variant/60 rounded-2xl shadow-sm overflow-hidden">
+                <div class="p-4 border-b border-outline-variant/50 flex items-center justify-between bg-surface-container-low/30">
+                    <span class="font-label-md text-xs font-semibold text-on-surface-variant">
+                        Tìm thấy <strong class="text-on-surface">@_orders.Count</strong> đơn hàng
+                    </span>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="border-b border-outline-variant/60 bg-surface-container-low/20 font-label-md text-xs text-on-surface-variant uppercase tracking-wider">
+                                <th class="py-3 px-4">Mã đơn</th>
+                                <th class="py-3 px-4">Thời gian</th>
+                                <th class="py-3 px-4">Khách hàng</th>
+                                <th class="py-3 px-4">Điện thoại</th>
+                                <th class="py-3 px-4">Tổng tiền</th>
+                                <th class="py-3 px-4">Trạng thái</th>
+                                <th class="py-3 px-4 text-right">Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-outline-variant/30 text-sm">
+                            @foreach (var order in _orders)
+                            {
+                                <tr class="hover:bg-surface-container-low/40 transition-colors group">
+                                    <td class="py-3.5 px-4 font-mono font-bold text-on-surface">
+                                        <div class="inline-flex items-center gap-1.5">
+                                            <span>@order.OrderCode</span>
+                                            <button type="button" 
+                                                    @onclick="() => CopyOrderCode(order.OrderCode)"
+                                                    class="p-0.5 text-on-surface-variant hover:text-primary transition-colors opacity-60 group-hover:opacity-100"
+                                                    title="Sao chép mã đơn">
+                                                <span class="material-symbols-outlined text-[15px]">content_copy</span>
+                                            </button>
+                                        </div>
+                                    </td>
+                                    <td class="py-3.5 px-4 font-mono text-xs text-on-surface-variant">
+                                        @order.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+                                    </td>
+                                    <td class="py-3.5 px-4 font-semibold text-on-surface">
+                                        @order.CustomerName
+                                    </td>
+                                    <td class="py-3.5 px-4 font-mono text-xs text-on-surface-variant">
+                                        <a href="tel:@order.Phone" class="hover:text-primary hover:underline">@order.Phone</a>
+                                    </td>
+                                    <td class="py-3.5 px-4 font-bold text-primary font-mono">
+                                        @order.TotalAmount.ToString("N0")₫
+                                    </td>
+                                    <td class="py-3.5 px-4">
+                                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold @OrderAdminHelpers.GetStatusBadgeStyle(order.Status)">
+                                            <span class="w-1.5 h-1.5 rounded-full @OrderAdminHelpers.GetStatusDotColor(order.Status)"></span>
+                                            <span>@OrderAdminHelpers.GetStatusDisplayName(order.Status)</span>
+                                        </span>
+                                    </td>
+                                    <td class="py-3.5 px-4 text-right">
+                                        <a href="/admin/orders/@order.Id" 
+                                           class="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface font-label-md text-xs font-semibold transition-colors border border-outline-variant/60 shadow-xs">
+                                            <span class="material-symbols-outlined text-[16px]">visibility</span>
+                                            <span>Chi tiết</span>
+                                        </a>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+    </div>
+</AdminShell>
+
+@code {
+    private bool _isLoading = true;
+    private string? _loadError;
+    private IReadOnlyList<OrderSummaryDto>? _orders;
+
+    private string? _searchTerm;
+    private OrderStatus? _selectedStatus;
+    private string? _copiedToast;
+    private System.Threading.Timer? _toastTimer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadOrdersAsync();
+    }
+
+    private async Task HandleSearch(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await LoadOrdersAsync();
+        }
+    }
+
+    private async Task LoadOrdersAsync()
+    {
+        _isLoading = true;
+        _loadError = null;
+        StateHasChanged();
+
+        try
+        {
+            var term = string.IsNullOrWhiteSpace(_searchTerm) ? null : _searchTerm.Trim();
+            _orders = await OrderService.GetOrdersAsync(_selectedStatus, term);
+        }
+        catch (Exception)
+        {
+            _loadError = "Đã có lỗi xảy ra khi tải danh sách đơn hàng.";
+        }
+        finally
+        {
+            _isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ResetFilterAsync()
+    {
+        _searchTerm = null;
+        _selectedStatus = null;
+        await LoadOrdersAsync();
+    }
+
+    private async Task CopyToClipboard(string text, string label)
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", text);
+            _copiedToast = $"Đã sao chép {label} vào bộ nhớ tạm!";
+            _toastTimer?.Dispose();
+            _toastTimer = new System.Threading.Timer(_ =>
+            {
+                _copiedToast = null;
+                InvokeAsync(StateHasChanged);
+            }, null, 2500, Timeout.Infinite);
+            StateHasChanged();
+        }
+        catch { }
+    }
+
+    private async Task CopyOrderCode(string code)
+    {
+        await CopyToClipboard(code, "mã đơn hàng");
+    }
+}

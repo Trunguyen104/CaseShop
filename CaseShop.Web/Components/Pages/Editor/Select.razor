@@ -1,0 +1,199 @@
+@page "/customize/select"
+@rendermode InteractiveServer
+@using CaseShop.Web.DTOs
+@using CaseShop.Web.Services
+@inject IPhoneCatalogService CatalogService
+@inject NavigationManager NavigationManager
+
+<PageTitle>Chọn thiết bị & ốp lưng - CASESHOP</PageTitle>
+
+<div class="flex flex-col w-full min-w-0 min-h-screen bg-surface items-center py-10 px-4">
+    <div class="w-full max-w-2xl space-y-8">
+        
+        <!-- Header -->
+        <div class="text-center space-y-2">
+            <h1 class="font-display text-4xl font-bold tracking-tight text-on-surface">Tùy chỉnh ốp lưng</h1>
+            <p class="font-body-lg text-on-surface-variant">Chọn dòng máy của bạn để thiết kế</p>
+        </div>
+
+        @if (_initFailed)
+        {
+            <div class="p-4 bg-error-container text-error rounded-xl flex items-center justify-center gap-2">
+                <span class="material-symbols-outlined">error</span>
+                <span>Không thể tải dữ liệu. Vui lòng thử lại sau.</span>
+            </div>
+        }
+        else if (_isLoadingInitial)
+        {
+            <div class="flex justify-center py-12">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+            </div>
+        }
+        else if (_brands == null || !_brands.Any())
+        {
+            <div class="p-8 bg-surface-container-low rounded-2xl text-center space-y-4">
+                <span class="material-symbols-outlined text-[48px] text-on-surface-variant">phonelink_off</span>
+                <h3 class="font-headline-sm text-on-surface">Chưa có dữ liệu</h3>
+                <p class="font-body-md text-on-surface-variant">Hiện tại không có dòng máy nào khả dụng. Vui lòng quay lại sau.</p>
+                <a href="/" class="inline-block mt-4 px-6 py-2.5 bg-primary text-on-primary rounded-full font-label-md transition-colors hover:bg-neutral-800">Quay về trang chủ</a>
+            </div>
+        }
+        else
+        {
+            <div class="bg-surface-container-lowest border border-outline-variant rounded-3xl p-6 md:p-10 shadow-sm space-y-8">
+                
+                <!-- Brand Selection -->
+                <div class="space-y-3">
+                    <label class="block font-label-lg font-semibold text-on-surface flex items-center gap-2">
+                        <span class="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs">1</span>
+                        Thương hiệu điện thoại
+                    </label>
+                    <div class="relative">
+                        <select class="w-full appearance-none px-4 py-3.5 bg-surface-container-low border-none rounded-xl text-on-surface font-body-lg focus:ring-2 focus:ring-primary focus:outline-none transition-shadow cursor-pointer"
+                                @bind="_selectedBrandId" @bind:after="OnBrandChanged">
+                            <option value="">-- Chọn thương hiệu --</option>
+                            @foreach (var brand in _brands)
+                            {
+                                <option value="@brand.Id">@brand.Name</option>
+                            }
+                        </select>
+                        <span class="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none">expand_more</span>
+                    </div>
+                </div>
+
+                <!-- Model Selection -->
+                <div class="space-y-3 @(_selectedBrandId == null ? "opacity-50 pointer-events-none" : "") transition-opacity">
+                    <label class="block font-label-lg font-semibold text-on-surface flex items-center gap-2">
+                        <span class="w-6 h-6 rounded-full @(_selectedBrandId == null ? "bg-surface-container text-on-surface-variant" : "bg-primary/10 text-primary") flex items-center justify-center text-xs">2</span>
+                        Dòng máy
+                    </label>
+                    @if (_isLoadingModels)
+                    {
+                        <div class="px-4 py-3.5 bg-surface-container-low rounded-xl flex items-center gap-2 text-on-surface-variant">
+                            <span class="material-symbols-outlined animate-spin text-[18px]">progress_activity</span>
+                            <span>Đang tải...</span>
+                        </div>
+                    }
+                    else if (_selectedBrandId != null && (_models == null || !_models.Any()))
+                    {
+                        <div class="px-4 py-3.5 bg-surface-container-low rounded-xl text-on-surface-variant text-sm border border-outline-variant">
+                            Không có dòng máy nào khả dụng cho thương hiệu này.
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="relative">
+                            <select class="w-full appearance-none px-4 py-3.5 bg-surface-container-low border-none rounded-xl text-on-surface font-body-lg focus:ring-2 focus:ring-primary focus:outline-none transition-shadow cursor-pointer"
+                                    @bind="_selectedModelId" @bind:after="OnModelChanged" disabled="@(_selectedBrandId == null)">
+                                <option value="">-- Chọn dòng máy --</option>
+                                @if (_models != null)
+                                {
+                                    @foreach (var model in _models)
+                                    {
+                                        <option value="@model.Id">@model.Name</option>
+                                    }
+                                }
+                            </select>
+                            <span class="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none">expand_more</span>
+                        </div>
+                    }
+                </div>
+
+                <div class="pt-6 border-t border-outline-variant">
+                    <button class="w-full py-4 rounded-full font-label-lg font-semibold flex items-center justify-center gap-2 transition-all shadow-sm
+                            @(_isSelectionComplete ? "bg-primary text-on-primary hover:bg-neutral-800 cursor-pointer" : "bg-surface-container text-on-surface-variant cursor-not-allowed opacity-70")"
+                            disabled="@(!_isSelectionComplete)"
+                            @onclick="ContinueToEditor">
+                        <span>Bắt đầu thiết kế</span>
+                        <span class="material-symbols-outlined text-[20px]">arrow_forward</span>
+                    </button>
+                    @if (_isSelectionComplete)
+                    {
+                        var m = _models?.FirstOrDefault(x => x.Id == _selectedModelId);
+                        if (m != null)
+                        {
+                            <div class="mt-4 p-4 rounded-xl bg-secondary-container/50 text-on-secondary-container flex items-start gap-3">
+                                <span class="material-symbols-outlined text-primary text-[24px]">check_circle</span>
+                                <div>
+                                    <p class="font-label-md font-semibold">Đã chọn: @m.Name</p>
+                                </div>
+                            </div>
+                        }
+                    }
+                </div>
+
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private bool _isLoadingInitial = true;
+    private bool _initFailed = false;
+
+    private IReadOnlyList<PhoneBrandDto>? _brands;
+    private Guid? _selectedBrandId;
+
+    private bool _isLoadingModels = false;
+    private IReadOnlyList<PhoneModelDto>? _models;
+    private Guid? _selectedModelId;
+
+    private bool _isSelectionComplete => _selectedBrandId.HasValue &&
+                                         _selectedModelId.HasValue;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _brands = await CatalogService.GetPhoneBrandsAsync(activeOnly: true);
+        }
+        catch
+        {
+            _initFailed = true;
+        }
+        finally
+        {
+            _isLoadingInitial = false;
+        }
+    }
+
+    private async Task OnBrandChanged()
+    {
+        // Reset downstream selections
+        _selectedModelId = null;
+        _models = null;
+
+        if (_selectedBrandId.HasValue)
+        {
+            _isLoadingModels = true;
+            try
+            {
+                _models = await CatalogService.GetPhoneModelsAsync(_selectedBrandId.Value, activeOnly: true);
+            }
+            catch
+            {
+                // handle error gracefully
+                _models = Array.Empty<PhoneModelDto>();
+            }
+            finally
+            {
+                _isLoadingModels = false;
+            }
+        }
+    }
+
+    private void OnModelChanged()
+    {
+        // No action needed for now, handled by _selectedModelId binding
+    }
+
+    private void ContinueToEditor()
+    {
+        if (_isSelectionComplete && _selectedModelId.HasValue)
+        {
+            NavigationManager.NavigateTo($"/customize?modelId={_selectedModelId.Value}");
+        }
+    }
+
+
+}

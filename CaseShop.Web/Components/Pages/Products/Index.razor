@@ -1,0 +1,131 @@
+@page "/products"
+@page "/shop"
+@rendermode InteractiveServer
+@using CaseShop.Web.DTOs
+@using CaseShop.Web.Services
+@using CaseShop.Web.Components.Shared
+@inject IProductService ProductService
+
+<PageTitle>Cửa hàng - CASESHOP</PageTitle>
+
+<!-- Subtle Architectural Atmospheric Blur in Background -->
+<div class="relative w-full overflow-hidden">
+    <div class="absolute -top-32 left-1/2 -translate-x-1/2 w-[900px] h-[350px] bg-secondary-container/25 rounded-full blur-3xl pointer-events-none -z-10"></div>
+    
+    <!-- Top Header & Breadcrumb Context -->
+    <section class="max-w-7xl mx-auto w-full px-margin-mobile lg:px-margin pt-8 pb-6">
+        <nav aria-label="Breadcrumb" class="flex items-center gap-2 font-label-sm text-label-sm text-on-surface-variant mb-6">
+            <a class="hover:text-on-surface transition-colors" href="/">Trang chủ</a>
+            <span class="material-symbols-outlined text-[14px]">chevron_right</span>
+            <a class="hover:text-on-surface transition-colors" href="/shop">Cửa hàng</a>
+            <span class="material-symbols-outlined text-[14px]">chevron_right</span>
+            <span class="text-on-surface font-semibold">Ốp lưng điện thoại</span>
+        </nav>
+        <div class="flex flex-col lg:flex-row lg:items-end justify-between gap-6 pb-6">
+            <div class="max-w-2xl space-y-3">
+                <div class="flex items-center gap-3">
+                    <!-- <span class="px-2.5 py-0.5 bg-surface-container-high text-on-surface font-overline text-overline uppercase tracking-widest rounded">Precision Line 2025</span> -->
+                    <span class="text-on-surface-variant font-body-sm text-body-sm flex items-center gap-1">
+                        <span class="w-1.5 h-1.5 rounded-full bg-primary inline-block"></span> @(products?.Count() ?? 0) mẫu thiết kế chuẩn
+                    </span>
+                </div>
+                <h1 class="font-headline-xl text-headline-xl tracking-tight text-on-surface">Bộ sưu tập ốp lưng cao cấp</h1>
+                <p class="font-body-lg text-body-lg text-on-surface-variant leading-relaxed">
+                    Khám phá các mẫu ốp lưng thiết kế tối giản, vật liệu bảo vệ.
+                </p>
+            </div>
+            
+           
+        </div>
+        
+        <!-- Quick Category Horizontal Pills Bar -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2 border-b border-outline-variant pb-4">
+            <!-- <div class="flex items-center gap-2 overflow-x-auto scrollbar-none">
+                <button class="shrink-0 px-4 py-1.5 rounded-full bg-primary text-on-primary font-label-md text-label-md transition-colors">Tất cả</button>
+                <button class="shrink-0 px-4 py-1.5 rounded-full bg-surface-container-low hover:bg-surface-container text-on-surface font-label-md text-label-md transition-colors">iPhone</button>
+                <button class="shrink-0 px-4 py-1.5 rounded-full bg-surface-container-low hover:bg-surface-container text-on-surface font-label-md text-label-md transition-colors">Samsung Galaxy</button>
+                <button class="shrink-0 px-4 py-1.5 rounded-full bg-surface-container-low hover:bg-surface-container text-on-surface font-label-md text-label-md transition-colors">Chống sốc cao cấp</button>
+                <button class="shrink-0 px-4 py-1.5 rounded-full bg-surface-container-low hover:bg-surface-container text-on-surface font-label-md text-label-md transition-colors">MagSafe</button>
+            </div> -->
+            <div class="flex items-center gap-2 self-end sm:self-auto shrink-0">
+                <span class="font-label-sm text-label-sm text-on-surface-variant">Sắp xếp:</span>
+                <div class="relative inline-block">
+                    <select aria-label="Sắp xếp theo" class="appearance-none h-8 pl-3 pr-7 bg-surface-container-low hover:bg-surface-container text-on-surface font-label-sm text-label-sm rounded-lg cursor-pointer focus:outline-none transition-colors">
+                        <option value="newest">Mới nhất</option>
+                        <option value="popular">Bán chạy</option>
+                        <option value="price-asc">Giá tăng dần</option>
+                        <option value="price-desc">Giá giảm dần</option>
+                    </select>
+                    <span class="material-symbols-outlined absolute right-1.5 top-2 text-on-surface-variant text-[16px] pointer-events-none">expand_more</span>
+                </div>
+            </div>
+             <!-- Live Search Bar with Filter Counter -->
+            <div class="w-full lg:w-96 flex flex-col gap-2">
+                <div class="relative flex items-center">
+                    <span class="material-symbols-outlined absolute left-3.5 text-on-surface-variant text-[20px] pointer-events-none">search</span>
+                    <input class="w-full h-11 pl-10 pr-24 bg-surface-container-low text-on-surface placeholder:text-outline font-body-md text-body-md rounded-lg focus:outline-none focus:bg-surface-container-lowest transition-all shadow-sm" placeholder="Tìm kiếm mẫu ốp, sticker..." type="text">
+                    <div class="absolute right-2 flex items-center gap-1.5 bg-surface-container text-on-surface-variant px-2 py-1 rounded font-label-sm text-label-sm">
+                        <span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                        <span id="activeFilterBadge">@(products?.Count() ?? 0) mục</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Main Grid Section -->
+    <section class="max-w-7xl mx-auto w-full px-margin-mobile lg:px-margin pb-16">
+        @if (products == null)
+        {
+            <div class="flex flex-col items-center justify-center py-20">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+                <p class="mt-4 text-on-surface-variant font-body-sm">Đang tải sản phẩm...</p>
+            </div>
+        }
+        else if (!products.Any())
+        {
+            <div class="text-center py-20">
+                <span class="material-symbols-outlined text-[48px] text-on-surface-variant mb-4">inventory_2</span>
+                <h3 class="font-headline-sm text-on-surface mb-2">Chưa có sản phẩm nào</h3>
+                <p class="text-on-surface-variant font-body-sm">Chúng tôi đang cập nhật các sản phẩm mới. Vui lòng quay lại sau.</p>
+            </div>
+        }
+        else
+        {
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                @foreach (var product in products)
+                {
+                    <ProductCard Product="product" />
+                }
+            </div>
+        }
+    </section>
+
+    <!-- Pagination & Progress Bar Section -->
+    <section class="max-w-7xl mx-auto w-full px-margin-mobile lg:px-margin pb-20">
+        <div class="p-6 bg-surface-container-lowest rounded-2xl shadow-sm flex flex-col items-center gap-6">
+            <div class="flex items-center justify-center gap-2">
+                <button aria-label="Trang trước" class="w-9 h-9 rounded-lg bg-surface-container-low text-outline flex items-center justify-center cursor-not-allowed">
+                    <span class="material-symbols-outlined text-[18px]">chevron_left</span>
+                </button>
+                <button class="w-9 h-9 rounded-lg bg-primary text-on-primary font-label-md text-label-md font-semibold flex items-center justify-center shadow-sm">1</button>
+                <button class="w-9 h-9 rounded-lg bg-surface-container-low hover:bg-surface-container text-on-surface font-label-md text-label-md flex items-center justify-center transition-colors">2</button>
+                <button class="w-9 h-9 rounded-lg bg-surface-container-low hover:bg-surface-container text-on-surface font-label-md text-label-md flex items-center justify-center transition-colors">3</button>
+                <span class="w-7 text-center text-outline font-label-md text-label-md">...</span>
+                <button class="w-9 h-9 rounded-lg bg-surface-container-low hover:bg-surface-container text-on-surface font-label-md text-label-md flex items-center justify-center transition-colors">6</button>
+                <button aria-label="Trang sau" class="w-9 h-9 rounded-lg bg-surface-container-low hover:bg-surface-container text-on-surface flex items-center justify-center transition-colors">
+                    <span class="material-symbols-outlined text-[18px]">chevron_right</span>
+                </button>
+            </div>
+        </div>
+    </section>
+</div>
+
+@code {
+    private IEnumerable<ProductDto>? products;
+
+    protected override async Task OnInitializedAsync()
+    {
+        products = await ProductService.GetActiveProductsAsync();
+    }
+}

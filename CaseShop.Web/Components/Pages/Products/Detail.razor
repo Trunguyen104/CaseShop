@@ -1,0 +1,436 @@
+@page "/products/{Id:guid}"
+@rendermode InteractiveServer
+@using CaseShop.Web.DTOs
+@using CaseShop.Web.Services
+@inject IProductService ProductService
+@inject ICartService CartService
+@inject IPhoneCatalogService CatalogService
+@inject NavigationManager NavigationManager
+@using CaseShop.Web.Components.Pages.Products.Components
+
+<PageTitle>@(product?.Name ?? "Chi tiết sản phẩm") - CASESHOP</PageTitle>
+
+<div class="max-w-7xl mx-auto w-full px-margin-mobile lg:px-margin py-8">
+    @if (cartMessage is not null)
+    {
+        <div class="fixed right-4 top-20 z-50 flex items-center gap-3 rounded-xl bg-primary px-4 py-3 text-on-primary shadow-xl" role="status">
+            <span class="material-symbols-outlined text-[20px]">check_circle</span>
+            <span class="font-label-md text-label-md font-semibold">@cartMessage</span>
+            <a href="/cart" class="font-label-sm text-label-sm underline underline-offset-4">Xem giỏ</a>
+        </div>
+    }
+    @if (isLoading)
+    {
+        <div class="flex flex-col items-center justify-center py-32">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+            <p class="mt-4 text-on-surface-variant font-body-sm">Đang tải sản phẩm...</p>
+        </div>
+    }
+    else if (product == null || !product.IsActive)
+    {
+        <div class="text-center py-32">
+            <span class="material-symbols-outlined text-[64px] text-on-surface-variant">inventory_2</span>
+            <h2 class="font-headline-lg text-headline-lg text-on-surface mt-4 mb-2">Không tìm thấy sản phẩm</h2>
+            <p class="font-body-md text-body-md text-on-surface-variant mb-8">Sản phẩm bạn đang tìm không tồn tại hoặc đã ngừng kinh doanh.</p>
+            <a href="/products" class="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-primary text-on-primary font-label-md text-label-md hover:bg-neutral-800 transition-colors">
+                <span class="material-symbols-outlined text-[18px]">arrow_back</span>
+                Quay lại cửa hàng
+            </a>
+        </div>
+    }
+    else
+    {
+        <!-- Breadcrumb -->
+        <nav aria-label="Breadcrumb" class="flex items-center gap-2 text-on-surface-variant font-body-sm text-body-sm mb-8">
+            <a class="hover:text-on-surface transition-colors flex items-center gap-1" href="/">
+                <span class="material-symbols-outlined text-[16px]">home</span>
+                <span>Trang chủ</span>
+            </a>
+            <span class="material-symbols-outlined text-[14px] text-outline">chevron_right</span>
+            <a class="hover:text-on-surface transition-colors" href="/products">Ốp lưng</a>
+            <span class="material-symbols-outlined text-[14px] text-outline">chevron_right</span>
+            <span class="text-on-surface font-semibold truncate">@product.Name</span>
+        </nav>
+
+        <!-- Main Product Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
+
+            <!-- LEFT: Image Gallery (7 cols) -->
+            <!-- LEFT: Image Gallery (7 cols) -->
+            <ProductGallery ImageUrl="@product.ImageUrl" ProductName="@product.Name" />
+
+            <!-- RIGHT: Product Info Panel (5 cols) -->
+            <section class="lg:col-span-5 flex flex-col gap-6">
+                <!-- Title & Rating -->
+                <div class="space-y-3">
+
+                    <h1 class="font-headline-lg text-headline-lg font-semibold text-on-surface leading-tight tracking-tight">
+                        @product.Name
+                    </h1>
+                </div>
+
+                <!-- Price Box -->
+                <div class="p-4 rounded-xl bg-surface-container-lowest shadow-sm flex items-baseline justify-between">
+                    <div class="flex items-baseline gap-3">
+                        <span class="font-headline-xl text-headline-xl font-bold text-on-surface tracking-tight">@product.Price.ToString("N0")₫</span>
+                    </div>
+                </div>
+
+                <!-- Brand & Model Selector -->
+                <div class="space-y-4 p-5 rounded-xl bg-surface-container-lowest shadow-sm border border-outline-variant/40">
+                    <div class="flex items-center justify-between">
+                        <label class="font-label-md text-label-md font-semibold text-on-surface">1. Chọn hãng thiết bị</label>
+                        <span class="font-label-sm text-label-sm text-on-surface-variant">
+                            @(_brands.Count > 0 ? $"Hỗ trợ {_brands.Count} thương hiệu" : "Đang tải...")
+                        </span>
+                    </div>
+
+                    @if (_brands.Count > 0)
+                    {
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                            @foreach (var brand in _brands)
+                            {
+                                var isSelected = _selectedBrandId == brand.Id;
+                                <button type="button"
+                                        class="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl border transition-all font-label-md text-label-md font-medium @(isSelected ? "bg-primary text-on-primary border-primary shadow-sm ring-2 ring-primary/20" : "bg-surface-container-low text-on-surface border-transparent hover:bg-surface-container hover:border-outline-variant/60")"
+                                        @onclick="() => SelectBrand(brand.Id)">
+                                    <span class="material-symbols-outlined text-[18px]">@GetBrandIcon(brand.Name)</span>
+                                    <span class="truncate">@brand.Name</span>
+                                </button>
+                            }
+                        </div>
+                    }
+
+                    <div class="pt-2 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <label class="font-label-md text-label-md font-semibold text-on-surface">2. Chọn đời máy</label>
+                            @if (_selectedModel != null)
+                            {
+                                <span class="font-label-sm text-label-sm text-primary font-medium flex items-center gap-1">
+                                    <span class="material-symbols-outlined text-[14px]">check_circle</span>
+                                    <span>Đã đồng bộ khuôn in</span>
+                                </span>
+                            }
+                        </div>
+
+                        <div class="relative">
+                            <select class="w-full h-11 pl-4 pr-10 rounded-lg bg-surface-container-low text-on-surface font-body-md text-body-md appearance-none focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer border border-transparent focus:border-outline-variant"
+                                    value="@_selectedModelId"
+                                    @onchange="OnModelChanged">
+                                @if (!CurrentModels.Any())
+                                {
+                                    <option value="" disabled>Chưa có dòng máy khả dụng</option>
+                                }
+                                else
+                                {
+                                    @foreach (var model in CurrentModels)
+                                    {
+                                        <option value="@model.Id">@model.Name</option>
+                                    }
+                                }
+                            </select>
+                            <span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant text-[20px]">expand_more</span>
+                        </div>
+
+                        @if (_selectedModel != null)
+                        {
+                            <div class="flex items-center gap-2 text-[12px] text-on-surface-variant bg-surface-container-low/60 px-3 py-2 rounded-lg border border-outline-variant/30 flex-wrap">
+                                <span class="material-symbols-outlined text-[16px] text-primary shrink-0">aspect_ratio</span>
+                                <span>Khuôn in chuẩn: <strong class="text-on-surface">@_selectedModel.CanvasWidth.ToString("G29") × @_selectedModel.CanvasHeight.ToString("G29") mm</strong></span>
+                                <span class="text-outline mx-1">•</span>
+                                <span class="text-on-surface-variant">Khớp khít camera &amp; viền bảo vệ</span>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <!-- Quantity + CTA -->
+                <div class="p-5 rounded-xl bg-surface-container-lowest shadow-sm space-y-4">
+                    <div class="flex items-center justify-between">
+                        <span class="font-label-md text-label-md font-semibold text-on-surface">Số lượng</span>
+                        <div class="flex items-center bg-surface-container-low rounded-lg p-1">
+                            <button aria-label="Giảm" class="w-8 h-8 rounded flex items-center justify-center text-on-surface hover:bg-surface-container transition-colors" @onclick="() => AdjustQty(-1)">
+                                <span class="material-symbols-outlined text-[16px]">remove</span>
+                            </button>
+                            <span class="w-12 text-center font-headline-sm text-headline-sm text-on-surface font-semibold">@quantity</span>
+                            <button aria-label="Tăng" class="w-8 h-8 rounded flex items-center justify-center text-on-surface hover:bg-surface-container transition-colors" @onclick="() => AdjustQty(1)">
+                                <span class="material-symbols-outlined text-[16px]">add</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="flex flex-col sm:flex-row gap-3 pt-2">
+                        <a class="flex-1 h-12 rounded-lg bg-primary hover:bg-black text-on-primary font-label-md text-label-md font-semibold flex items-center justify-center gap-2 transition-all shadow-sm"
+                           href="@GetCustomizeUrl()">
+                            <span class="material-symbols-outlined text-[18px]">brush</span>
+                            <span>Thiết kế mẫu này ngay</span>
+                        </a>
+                        <button type="button" class="flex-1 h-12 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface font-label-md text-label-md font-semibold flex items-center justify-center gap-2 transition-all shadow-sm" @onclick="AddToCartAsync">
+                            <span class="material-symbols-outlined text-[18px]">shopping_bag</span>
+                            <span>Thêm vào giỏ hàng</span>
+                        </button>
+                    </div>
+                    <div class="flex items-center justify-center gap-6 pt-1 text-on-surface-variant font-label-sm text-label-sm flex-wrap">
+                        <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[16px] text-on-surface">local_shipping</span> Freeship đơn từ 500k</span>
+                        <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[16px] text-on-surface">credit_card</span> Thanh toán khi nhận hàng (COD)</span>
+                    </div>
+                </div>
+
+                <!-- Accordion Details -->
+                <div class="space-y-3">
+                    <!-- Features Accordion -->
+                    <div class="rounded-xl bg-surface-container-lowest shadow-sm overflow-hidden">
+                        <button class="w-full py-4 px-5 flex items-center justify-between text-left focus:outline-none" @onclick="() => ToggleAccordion(0)">
+                            <div class="flex items-center gap-3 font-headline-sm text-headline-sm font-semibold text-on-surface">
+                                <span class="material-symbols-outlined text-[20px] text-primary">layers</span>
+                                <span>Đặc điểm nổi bật &amp; Kỹ thuật vật liệu</span>
+                            </div>
+                            <span class="material-symbols-outlined text-[20px] text-on-surface-variant transition-transform duration-200 @(openAccordion == 0 ? "rotate-180" : "")">expand_more</span>
+                        </button>
+                        @if (openAccordion == 0)
+                        {
+                            <div class="px-5 pb-5 pt-1 space-y-3 text-on-surface-variant font-body-sm text-body-sm">
+                                @if (!string.IsNullOrWhiteSpace(product.Description))
+                                {
+                                    <p class="leading-relaxed" style="white-space: pre-wrap;">@product.Description</p>
+                                }
+                                <ul class="space-y-2 leading-relaxed">
+                                    <li class="flex items-start gap-2">
+                                        <span class="material-symbols-outlined text-[18px] text-primary shrink-0 mt-0.5">check_circle</span>
+                                        <span><strong class="text-on-surface">Vật liệu TPU Bayers Đức:</strong> Hợp chất phân tử cao, lọc tia tử ngoại, chống ngả vàng lên tới 24 tháng.</span>
+                                    </li>
+                                    <li class="flex items-start gap-2">
+                                        <span class="material-symbols-outlined text-[18px] text-primary shrink-0 mt-0.5">check_circle</span>
+                                        <span><strong class="text-on-surface">Gờ bảo vệ camera 1.2mm:</strong> Vành kim loại anodized bảo vệ thấu kính sapphire khỏi trầy xước.</span>
+                                    </li>
+                                    <li class="flex items-start gap-2">
+                                        <span class="material-symbols-outlined text-[18px] text-primary shrink-0 mt-0.5">check_circle</span>
+                                        <span><strong class="text-on-surface">Nam châm Neodymium N52:</strong> Lực hút 13N siêu mạnh, tương thích MagSafe hoàn hảo.</span>
+                                    </li>
+                                </ul>
+                            </div>
+                        }
+                    </div>
+
+                    <!-- Shipping Accordion -->
+                    <div class="rounded-xl bg-surface-container-lowest shadow-sm overflow-hidden">
+                        <button class="w-full py-4 px-5 flex items-center justify-between text-left focus:outline-none" @onclick="() => ToggleAccordion(1)">
+                            <div class="flex items-center gap-3 font-headline-sm text-headline-sm font-semibold text-on-surface">
+                                <span class="material-symbols-outlined text-[20px] text-primary">local_shipping</span>
+                                <span>Chính sách giao hàng &amp; Bảo hành 1 đổi 1</span>
+                            </div>
+                            <span class="material-symbols-outlined text-[20px] text-on-surface-variant transition-transform duration-200 @(openAccordion == 1 ? "rotate-180" : "")">expand_more</span>
+                        </button>
+                        @if (openAccordion == 1)
+                        {
+                            <div class="px-5 pb-5 pt-1 space-y-3 text-on-surface-variant font-body-sm text-body-sm">
+                                <p class="leading-relaxed"><strong class="text-on-surface">Miễn phí giao hàng:</strong> Áp dụng cho mọi đơn từ 500.000₫ trên toàn quốc. Nội thành HN &amp; TP.HCM nhận trong 24-48 giờ.</p>
+                                <p class="leading-relaxed"><strong class="text-on-surface">Bảo hành 1 đổi 1 trong 30 ngày:</strong> Áp dụng nếu sản phẩm có lỗi từ nhà sản xuất. Sau 30 ngày, bảo hành kỹ thuật 12 tháng.</p>
+                            </div>
+                        }
+                    </div>
+
+                    <!-- Care Accordion -->
+                    <div class="rounded-xl bg-surface-container-lowest shadow-sm overflow-hidden">
+                        <button class="w-full py-4 px-5 flex items-center justify-between text-left focus:outline-none" @onclick="() => ToggleAccordion(2)">
+                            <div class="flex items-center gap-3 font-headline-sm text-headline-sm font-semibold text-on-surface">
+                                <span class="material-symbols-outlined text-[20px] text-primary">cleaning_services</span>
+                                <span>Hướng dẫn sử dụng &amp; Bảo quản ốp</span>
+                            </div>
+                            <span class="material-symbols-outlined text-[20px] text-on-surface-variant transition-transform duration-200 @(openAccordion == 2 ? "rotate-180" : "")">expand_more</span>
+                        </button>
+                        @if (openAccordion == 2)
+                        {
+                            <div class="px-5 pb-5 pt-1 text-on-surface-variant font-body-sm text-body-sm">
+                                <p class="leading-relaxed">Vệ sinh ốp định kỳ 2 tuần/lần bằng khăn sợi microfiber ẩm hoặc cồn isopropyl dưới 70%. Tránh để ốp tiếp xúc với hóa chất tẩy rửa mạnh.</p>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- Customer Reviews -->
+        <section class="mt-20 pt-10 border-t border-outline-variant" id="reviews">
+            <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
+                <div>
+                    <span class="font-overline text-overline uppercase tracking-widest text-secondary font-semibold">Trải nghiệm khách hàng</span>
+                    <h2 class="font-headline-lg text-headline-lg font-semibold text-on-surface mt-1">Đánh giá từ cộng đồng</h2>
+                </div>
+                <button class="h-10 px-4 rounded-lg bg-surface-container text-on-surface font-label-md text-label-md font-semibold hover:bg-surface-container-high transition-colors flex items-center gap-2 self-start md:self-auto">
+                    <span class="material-symbols-outlined text-[18px]">rate_review</span>
+                    <span>Viết đánh giá</span>
+                </button>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                @foreach (var review in reviews)
+                {
+                    <div class="p-6 rounded-xl bg-surface-container-lowest shadow-sm space-y-3">
+                        <div class="flex items-center justify-between">
+                            <div class="flex text-primary">
+                                @for (int i = 0; i < 5; i++)
+                                {
+                                    <span class="material-symbols-outlined text-[16px]" style="font-variation-settings: 'FILL' 1;">star</span>
+                                }
+                            </div>
+                            <span class="font-label-sm text-label-sm text-on-surface-variant">@review.Date</span>
+                        </div>
+                        <p class="font-body-md text-body-md text-on-surface font-medium">"@review.Comment"</p>
+                        <div class="flex items-center gap-2 pt-2">
+                            <div class="w-7 h-7 rounded-full bg-surface-container-high flex items-center justify-center font-label-sm text-label-sm font-semibold">@review.Avatar</div>
+                            <div>
+                                <p class="font-label-sm text-label-sm font-semibold text-on-surface">@review.Name</p>
+                                <p class="font-overline text-[11px] text-on-surface-variant">@review.Detail</p>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </section>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public Guid Id { get; set; }
+
+    private ProductDto? product;
+    private bool isLoading = true;
+    private bool isFavorite = false;
+    private int quantity = 1;
+
+    private IReadOnlyList<PhoneBrandDto> _brands = [];
+    private IReadOnlyList<PhoneModelDto> _allModels = [];
+    private Guid? _selectedBrandId;
+    private PhoneModelDto? _selectedModel;
+    private Guid? _selectedModelId;
+
+    private string? cartMessage;
+    private int? openAccordion = 0;
+
+    private IEnumerable<PhoneModelDto> CurrentModels =>
+        _selectedBrandId.HasValue
+            ? _allModels.Where(m => m.PhoneBrandId == _selectedBrandId.Value)
+            : [];
+
+    private record ColorOption(string Name, string Hex);
+    private readonly List<ColorOption> colors = new()
+    {
+        new("Đen mờ Matte", "#111827"),
+        new("Khói mờ Frosted", "#4B5563"),
+        new("Xám không gian", "#9CA3AF"),
+    };
+
+    private record ReviewItem(string Avatar, string Name, string Detail, string Comment, string Date);
+    private readonly List<ReviewItem> reviews = new()
+    {
+        new("T", "Trần Minh Quân", "Đã mua iPhone 16 Pro Max • Đen Matte", "Ốp cầm cực sướng tay, không bám vân tay xíu nào. MagSafe hít chắc hơn cả ốp hãng.", "2 ngày trước"),
+        new("H", "Hoàng Linh Chi", "Đã mua iPhone 15 Pro • Khói Frosted", "Đóng gói tối giản cao cấp như unbox phụ kiện Apple. Khung nhôm camera bảo vệ rất yên tâm.", "5 ngày trước"),
+        new("K", "Khoa Vũ Designer", "Đã mua Galaxy S24 Ultra • Đen Matte", "Mình đem đi khắc laser thêm tên ở mục Thiết Kế, hoàn thiện sắc nét không tưởng!", "1 tuần trước"),
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        isLoading = true;
+        try
+        {
+            product = await ProductService.GetProductByIdAsync(Id);
+            _brands = await CatalogService.GetPhoneBrandsAsync(activeOnly: true);
+            _allModels = await CatalogService.GetPhoneModelsAsync(activeOnly: true);
+
+            if (_brands.Count > 0)
+            {
+                _selectedBrandId = _brands[0].Id;
+                UpdateSelectedModel();
+            }
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void ToggleFavorite() => isFavorite = !isFavorite;
+
+    private void AdjustQty(int delta)
+    {
+        quantity = Math.Clamp(quantity + delta, 1, 99);
+    }
+
+    private void SelectBrand(Guid brandId)
+    {
+        _selectedBrandId = brandId;
+        UpdateSelectedModel();
+    }
+
+    private void UpdateSelectedModel()
+    {
+        var models = CurrentModels.ToList();
+        _selectedModel = models.FirstOrDefault();
+        _selectedModelId = _selectedModel?.Id;
+    }
+
+    private void OnModelChanged(ChangeEventArgs e)
+    {
+        if (Guid.TryParse(e.Value?.ToString(), out var modelId))
+        {
+            _selectedModel = _allModels.FirstOrDefault(m => m.Id == modelId);
+            _selectedModelId = _selectedModel?.Id;
+        }
+    }
+
+    private string GetFullModelName(PhoneModelDto? model)
+    {
+        if (model == null) return "Ốp lưng tiêu chuẩn";
+        if (!string.IsNullOrWhiteSpace(model.PhoneBrandName) &&
+            !model.Name.StartsWith(model.PhoneBrandName, StringComparison.OrdinalIgnoreCase))
+        {
+            return $"{model.PhoneBrandName} {model.Name}";
+        }
+        return model.Name;
+    }
+
+    private string GetCustomizeUrl()
+    {
+        if (product == null) return "/customize";
+        var url = $"/customize?productId={product.Id}";
+        if (_selectedModel != null)
+        {
+            url += $"&modelId={_selectedModel.Id}";
+        }
+        return url;
+    }
+
+    private static string GetBrandIcon(string brandName)
+    {
+        var lower = brandName.ToLowerInvariant();
+        if (lower.Contains("apple") || lower.Contains("iphone")) return "phone_iphone";
+        if (lower.Contains("samsung") || lower.Contains("galaxy")) return "smartphone";
+        if (lower.Contains("google") || lower.Contains("pixel")) return "phone_android";
+        if (lower.Contains("xiaomi") || lower.Contains("mi")) return "mobile_friendly";
+        return "devices";
+    }
+
+    private async Task AddToCartAsync()
+    {
+        if (product is null) return;
+
+        var variantName = GetFullModelName(_selectedModel);
+
+        await CartService.AddAsync(new ClientCartItem
+        {
+            ProductId = product.Id,
+            ProductName = product.Name,
+            ImageUrl = product.ImageUrl,
+            UnitPrice = product.Price,
+            Quantity = quantity,
+            Variant = variantName
+        });
+
+        cartMessage = $"Đã thêm {product.Name} ({variantName}) vào giỏ";
+    }
+
+    private void ToggleAccordion(int index)
+    {
+        openAccordion = openAccordion == index ? null : index;
+    }
+}

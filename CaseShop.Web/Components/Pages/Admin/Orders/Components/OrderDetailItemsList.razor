@@ -1,0 +1,160 @@
+@using CaseShop.Web.DTOs
+@namespace CaseShop.Web.Components.Pages.Admin.Orders.Components
+
+<div class="bg-surface-container-lowest border border-outline-variant/60 rounded-2xl shadow-sm overflow-hidden">
+    <!-- Header -->
+    <div class="p-5 border-b border-outline-variant/50 flex items-center justify-between bg-surface-container-low/30">
+        <div class="flex items-center gap-2.5">
+            <span class="material-symbols-outlined text-primary text-[22px]">inventory_2</span>
+            <h2 class="font-headline-sm text-base lg:text-headline-sm font-bold text-on-surface">
+                Danh sách sản phẩm (@(Items?.Count ?? 0))
+            </h2>
+        </div>
+        <span class="font-overline text-overline uppercase tracking-wider px-2.5 py-1 rounded-full bg-surface-container text-on-surface-variant font-semibold">
+            Tổng: @(Items?.Sum(i => i.Quantity) ?? 0) món
+        </span>
+    </div>
+
+    <!-- Items List -->
+    <div class="divide-y divide-outline-variant/40">
+        @if (Items != null)
+        {
+            @foreach (var item in Items)
+            {
+                var thumbnail = OrderAdminHelpers.GetItemThumbnail(item);
+                var hasCustomDesign = item.CustomDesign != null;
+                var phoneModel = OrderAdminHelpers.GetPhoneModel(item);
+
+                <div class="p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 hover:bg-surface-container-low/20 transition-colors">
+                    
+                    <!-- Product Info with Thumbnail -->
+                    <div class="flex items-start gap-4 min-w-0 flex-1">
+                        <!-- Thumbnail -->
+                        <div class="relative w-20 h-24 sm:w-20 sm:h-24 rounded-xl bg-surface-container-low border border-outline-variant/60 flex items-center justify-center p-1.5 shrink-0 overflow-hidden group cursor-pointer shadow-inner"
+                             @onclick="() => OnPreviewRequested.InvokeAsync(item)">
+                            @if (!string.IsNullOrEmpty(thumbnail))
+                            {
+                                <img src="@thumbnail" 
+                                     alt="@item.ProductName" 
+                                     class="w-full h-full object-contain drop-shadow-sm group-hover:scale-105 transition-transform" />
+                                <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
+                                    <span class="material-symbols-outlined text-[20px]">zoom_in</span>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="flex flex-col items-center justify-center text-outline">
+                                    <span class="material-symbols-outlined text-[28px]">smartphone</span>
+                                    <span class="text-[9px] font-semibold mt-0.5">Ốp tiêu chuẩn</span>
+                                </div>
+                            }
+
+                            @if (hasCustomDesign)
+                            {
+                                <span class="absolute top-1 left-1 w-2.5 h-2.5 rounded-full bg-primary ring-2 ring-surface" title="Thiết kế tùy chỉnh"></span>
+                            }
+                        </div>
+
+                        <!-- Details -->
+                        <div class="space-y-1.5 min-w-0 flex-1">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <h3 class="font-label-lg text-sm sm:text-base font-bold text-on-surface leading-snug">
+                                    @item.ProductName
+                                </h3>
+                                @if (hasCustomDesign)
+                                {
+                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/20">
+                                        <span class="material-symbols-outlined text-[14px]">palette</span>
+                                        <span>Thiết kế riêng</span>
+                                    </span>
+                                }
+                            </div>
+
+                            <!-- Product ID Badge (compact) & Phone Model info -->
+                            <div class="flex items-center gap-2 flex-wrap pt-0.5">
+                                <div class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-surface-container-high/60 border border-outline-variant/60 font-mono text-xs text-on-surface"
+                                     title="@($"ID đầy đủ: {item.ProductId} (Bấm nút để copy)")">
+                                    <span class="text-on-surface-variant font-medium text-[11px]">ID:</span>
+                                    <span class="font-semibold">@OrderAdminHelpers.FormatShortId(item.ProductId)</span>
+                                    <button type="button" 
+                                            @onclick="() => OnCopyProductId.InvokeAsync(item.ProductId)"
+                                            class="p-0.5 text-on-surface-variant hover:text-primary transition-colors ml-0.5" 
+                                            title="Sao chép toàn bộ ID sản phẩm">
+                                        <span class="material-symbols-outlined text-[14px]">content_copy</span>
+                                    </button>
+                                </div>
+
+                                @if (!string.IsNullOrEmpty(phoneModel))
+                                {
+                                    <div class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border border-emerald-300/40 text-xs font-semibold"
+                                         title="Dòng máy điện thoại khách chọn">
+                                        <span class="material-symbols-outlined text-[14px] text-emerald-600 dark:text-emerald-400">smartphone</span>
+                                        <span>@phoneModel</span>
+                                    </div>
+                                }
+                                else if (!string.IsNullOrEmpty(item.ProductDescription))
+                                {
+                                    <span class="text-xs text-on-surface-variant font-medium">
+                                        @item.ProductDescription
+                                    </span>
+                                }
+
+                                <a href="/admin/products/edit/@item.ProductId" 
+                                   target="_blank" 
+                                   class="inline-flex items-center gap-0.5 text-xs text-primary hover:underline font-medium px-1.5 py-0.5 rounded hover:bg-primary/5 transition-colors"
+                                   title="Chỉnh sửa sản phẩm trong trang quản trị">
+                                    <span>Quản lý SP</span>
+                                    <span class="material-symbols-outlined text-[13px]">open_in_new</span>
+                                </a>
+                            </div>
+
+                            <!-- Unit Price calculation -->
+                            <div class="flex items-center gap-3 text-xs sm:text-sm text-on-surface-variant pt-1 font-body-sm">
+                                <span>Đơn giá: <strong class="text-on-surface">@item.UnitPrice.ToString("N0")₫</strong></span>
+                                <span>×</span>
+                                <span>Số lượng: <strong class="text-on-surface">@item.Quantity</strong></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Line Total -->
+                    <div class="text-left sm:text-right shrink-0 pl-24 sm:pl-0">
+                        <div class="font-headline-sm text-base sm:text-lg font-bold text-on-surface">
+                            @item.LineTotal.ToString("N0")₫
+                        </div>
+                        <span class="font-overline text-[10px] text-on-surface-variant uppercase tracking-wider block">Thành tiền</span>
+                    </div>
+
+                </div>
+            }
+        }
+    </div>
+
+    <!-- Table Summary Footer -->
+    <div class="p-5 bg-surface-container-low/40 border-t border-outline-variant/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div class="text-xs text-on-surface-variant flex items-center gap-1.5">
+            <span class="material-symbols-outlined text-[16px]">verified</span>
+            <span>Giá đã bao gồm toàn bộ thuế VAT và phí gia công ốp.</span>
+        </div>
+        <div class="flex items-baseline gap-2 self-end sm:self-auto">
+            <span class="font-label-md text-sm text-on-surface-variant">Tổng giá trị sản phẩm:</span>
+            <span class="font-headline-md text-xl lg:text-2xl font-bold text-primary">
+                @TotalAmount.ToString("N0")₫
+            </span>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public IReadOnlyList<OrderItemDetailDto>? Items { get; set; }
+
+    [Parameter]
+    public decimal TotalAmount { get; set; }
+
+    [Parameter]
+    public EventCallback<OrderItemDetailDto> OnPreviewRequested { get; set; }
+
+    [Parameter]
+    public EventCallback<Guid> OnCopyProductId { get; set; }
+}

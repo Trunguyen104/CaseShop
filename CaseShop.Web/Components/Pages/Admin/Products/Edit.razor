@@ -1,0 +1,386 @@
+@page "/admin/products/edit/{Id:guid}"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Admin")]
+@using CaseShop.Web.DTOs
+@using CaseShop.Web.Services
+@inject IProductService ProductService
+@inject IStorageService StorageService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Sửa sản phẩm - CaseShop Admin</PageTitle>
+
+<AdminShell ActiveSection="products">
+    <div class="w-full max-w-5xl mx-auto space-y-6">
+        
+        <!-- Header -->
+        <AdminPageHeader Title="Chỉnh sửa sản phẩm" Subtitle="@($"Mã hệ thống: {Id}")">
+            <div class="flex items-center gap-2 flex-wrap">
+                <a href="/admin/products" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface transition-colors font-label-md text-label-md">
+                    <span class="material-symbols-outlined text-[18px]">arrow_back</span>
+                    <span>Quay lại</span>
+                </a>
+                <button type="button" @onclick="CopyProductId" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-surface-container-lowest border border-outline-variant hover:bg-surface-container text-on-surface transition-colors font-label-md text-label-md shadow-sm" title="Sao chép ID sản phẩm">
+                    <span class="material-symbols-outlined text-[18px]">content_copy</span>
+                    <span>Sao chép ID</span>
+                </button>
+                <a href="/shop" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-surface-container-lowest border border-outline-variant hover:bg-surface-container text-primary transition-colors font-label-md text-label-md shadow-sm" title="Xem danh mục trên cửa hàng">
+                    <span class="material-symbols-outlined text-[18px]">storefront</span>
+                    <span>Xem cửa hàng</span>
+                </a>
+            </div>
+        </AdminPageHeader>
+
+        <!-- Feedback Toast -->
+        @if (!string.IsNullOrEmpty(_copiedToast))
+        {
+            <div class="fixed top-20 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 bg-neutral-900 text-white rounded-xl shadow-xl font-label-md text-xs flex items-center gap-2 animate-in fade-in slide-in-from-top-2">
+                <span class="material-symbols-outlined text-[16px] text-emerald-400">check_circle</span>
+                <span>@_copiedToast</span>
+            </div>
+        }
+
+        @if (isLoading)
+        {
+            <div class="flex flex-col items-center justify-center py-20 gap-3">
+                <AppSpinner Size="AppSpinner.SpinnerSize.Large" />
+                <p class="font-body-md text-sm text-on-surface-variant">Đang tải thông tin sản phẩm...</p>
+            </div>
+        }
+        else if (notFound)
+        {
+            <div class="p-8 bg-error-container text-on-error-container rounded-2xl text-center space-y-3 max-w-lg mx-auto">
+                <span class="material-symbols-outlined text-[48px] text-error">error_outline</span>
+                <h3 class="font-headline-sm text-headline-sm font-semibold">Không tìm thấy sản phẩm!</h3>
+                <p class="font-body-md text-body-md">Sản phẩm bạn muốn chỉnh sửa không tồn tại hoặc đã bị xóa.</p>
+                <div class="pt-2">
+                    <a href="/admin/products" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-on-primary font-label-md hover:bg-neutral-800 transition-colors">
+                        Trở lại danh sách
+                    </a>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                
+                <!-- Main Form (8 cols) -->
+                <div class="lg:col-span-8 bg-surface-container-lowest border border-outline-variant/60 rounded-2xl shadow-sm p-6 sm:p-7 space-y-6">
+                    @if (errorMessage != null)
+                    {
+                        <div class="p-4 bg-error-container text-on-error-container rounded-xl flex items-center gap-2.5">
+                            <span class="material-symbols-outlined text-error text-[20px]">error</span>
+                            <span class="font-body-sm text-body-sm">@errorMessage</span>
+                        </div>
+                    }
+
+                    <EditForm Model="@dto" OnValidSubmit="HandleValidSubmit" FormName="editProductForm">
+                        <DataAnnotationsValidator />
+
+                        <div class="space-y-5">
+                            
+                            <!-- Product ID Readonly Display -->
+                            <div class="space-y-1.5">
+                                <label class="font-label-md text-xs font-semibold text-on-surface block">Mã định danh sản phẩm (Product ID)</label>
+                                <div class="flex items-center gap-2">
+                                    <input type="text" 
+                                           readonly 
+                                           value="@Id" 
+                                           class="w-full h-11 px-3.5 bg-surface-container-low font-mono text-xs font-semibold text-on-surface-variant rounded-xl border border-outline-variant/60 select-all outline-none cursor-default" />
+                                    <button type="button" 
+                                            @onclick="CopyProductId" 
+                                            class="h-11 px-3.5 inline-flex items-center justify-center gap-1.5 rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface font-label-md text-xs font-semibold transition-colors border border-outline-variant/60 shrink-0">
+                                        <span class="material-symbols-outlined text-[16px]">content_copy</span>
+                                        <span>Sao chép</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Name -->
+                            <div class="space-y-1.5">
+                                <label for="name" class="font-label-md text-xs font-semibold text-on-surface block">
+                                    Tên sản phẩm <span class="text-error">*</span>
+                                </label>
+                                <InputText id="name" 
+                                           class="w-full h-11 px-3.5 bg-surface-container-low text-on-surface font-body-md text-sm rounded-xl border border-outline-variant/80 outline-none focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-on-surface-variant/60" 
+                                           @bind-Value="dto.Name" 
+                                           placeholder="Nhập tên sản phẩm..." />
+                                <ValidationMessage For="@(() => dto.Name)" class="text-xs text-error font-medium" />
+                            </div>
+
+                            <!-- Price -->
+                            <div class="space-y-1.5">
+                                <label for="price" class="font-label-md text-xs font-semibold text-on-surface block">
+                                    Giá niêm yết (VNĐ) <span class="text-error">*</span>
+                                </label>
+                                <div class="relative">
+                                    <input type="number" 
+                                           id="price" 
+                                           class="w-full h-11 pl-3.5 pr-10 bg-surface-container-low text-on-surface font-mono text-sm rounded-xl border border-outline-variant/80 outline-none focus:ring-2 focus:ring-primary/20 transition-all" 
+                                           @bind="dto.Price" 
+                                           min="0" 
+                                           step="1000" />
+                                    <span class="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-on-surface-variant">₫</span>
+                                </div>
+                                <ValidationMessage For="@(() => dto.Price)" class="text-xs text-error font-medium" />
+                            </div>
+
+                            <!-- Description -->
+                            <div class="space-y-1.5">
+                                <label for="description" class="font-label-md text-xs font-semibold text-on-surface block">Mô tả sản phẩm</label>
+                                <InputTextArea id="description" 
+                                               rows="4" 
+                                               class="w-full p-3.5 bg-surface-container-low text-on-surface font-body-md text-sm rounded-xl border border-outline-variant/80 outline-none focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-on-surface-variant/60" 
+                                               @bind-Value="dto.Description" 
+                                               placeholder="Thông tin giới thiệu, chất liệu hoặc ghi chú..." />
+                                <ValidationMessage For="@(() => dto.Description)" class="text-xs text-error font-medium" />
+                            </div>
+
+                            <!-- Image Upload -->
+                            <div class="space-y-1.5">
+                                <label for="imageFile" class="font-label-md text-xs font-semibold text-on-surface block">
+                                    Thay đổi hình ảnh (Tối đa 5MB: JPG, PNG, WEBP)
+                                </label>
+                                <InputFile id="imageFile" 
+                                           class="w-full px-3 py-2 bg-surface-container-low text-on-surface font-body-sm text-xs rounded-xl border border-outline-variant/80 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-surface-container-high file:text-on-surface hover:file:bg-surface-container-highest cursor-pointer" 
+                                           OnChange="HandleFileSelected" 
+                                           accept=".jpg,.jpeg,.png,.webp" />
+                                @if (fileErrorMessage != null)
+                                {
+                                    <p class="text-xs text-error font-medium">@fileErrorMessage</p>
+                                }
+                            </div>
+
+                            <!-- IsActive Switch -->
+                            <div class="pt-2">
+                                <label class="flex items-center gap-3 p-3.5 bg-surface-container-low/60 rounded-xl border border-outline-variant/50 cursor-pointer hover:bg-surface-container-low transition-colors">
+                                    <input type="checkbox" 
+                                           id="isActive" 
+                                           class="w-5 h-5 rounded border-outline-variant text-primary focus:ring-primary/20 cursor-pointer" 
+                                           @bind="dto.IsActive" />
+                                    <div>
+                                        <span class="font-label-md text-sm font-semibold text-on-surface block">Kích hoạt kinh doanh</span>
+                                        <span class="font-body-sm text-xs text-on-surface-variant">Cho phép hiển thị sản phẩm trên danh mục cửa hàng</span>
+                                    </div>
+                                </label>
+                            </div>
+
+                            <!-- Actions -->
+                            <div class="pt-4 border-t border-outline-variant/50 flex items-center justify-end gap-3">
+                                <a href="/admin/products" class="px-5 py-2.5 rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface font-label-md text-sm font-semibold transition-colors">
+                                    Hủy bỏ
+                                </a>
+                                <button type="submit" 
+                                        class="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-primary text-on-primary font-label-md text-sm font-semibold hover:bg-neutral-800 transition-colors shadow-sm disabled:opacity-50" 
+                                        disabled="@isSubmitting">
+                                    @if (isSubmitting)
+                                    {
+                                        <AppSpinner Size="AppSpinner.SpinnerSize.Small" Class="border-on-primary/30 border-t-on-primary" />
+                                        <span>Đang lưu...</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="material-symbols-outlined text-[18px]">save</span>
+                                        <span>Cập nhật sản phẩm</span>
+                                    }
+                                </button>
+                            </div>
+
+                        </div>
+                    </EditForm>
+                </div>
+
+                <!-- Preview Side Card (4 cols) -->
+                <div class="lg:col-span-4 bg-surface-container-lowest border border-outline-variant/60 rounded-2xl shadow-sm p-5 space-y-4">
+                    <div class="flex items-center gap-2 pb-3 border-b border-outline-variant/50">
+                        <span class="material-symbols-outlined text-primary text-[20px]">image</span>
+                        <h4 class="font-headline-sm text-base font-bold text-on-surface">Hình ảnh sản phẩm</h4>
+                    </div>
+
+                    <div class="w-full aspect-square bg-surface-container-low rounded-xl border border-outline-variant/60 flex items-center justify-center p-3 overflow-hidden shadow-inner">
+                        @if (!string.IsNullOrEmpty(imagePreviewUrl ?? dto.ImageUrl))
+                        {
+                            <img src="@(imagePreviewUrl ?? dto.ImageUrl)" alt="@dto.Name" class="w-full h-full object-contain drop-shadow-md" />
+                        }
+                        else
+                        {
+                            <div class="flex flex-col items-center justify-center text-outline gap-1">
+                                <span class="material-symbols-outlined text-[36px]">image</span>
+                                <span class="text-xs">Chưa có hình ảnh</span>
+                            </div>
+                        }
+                    </div>
+
+                    <div class="space-y-2 text-xs text-on-surface-variant font-body-sm pt-1">
+                        <div class="flex items-center justify-between">
+                            <span>Trạng thái:</span>
+                            @if (dto.IsActive)
+                            {
+                                <span class="font-semibold text-emerald-600 flex items-center gap-1">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                    <span>Hiển thị</span>
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="font-semibold text-on-surface-variant flex items-center gap-1">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-outline"></span>
+                                    <span>Đang ẩn</span>
+                                </span>
+                            }
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span>Giá hiển thị:</span>
+                            <span class="font-mono font-bold text-on-surface">@dto.Price.ToString("N0")₫</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        }
+    </div>
+</AdminShell>
+
+@code {
+    [Parameter]
+    public Guid Id { get; set; }
+
+    private ProductCreateUpdateDto dto = new();
+    private bool isLoading = true;
+    private bool notFound = false;
+    private bool isSubmitting = false;
+    private string? errorMessage;
+    private string? fileErrorMessage;
+    private IBrowserFile? selectedFile;
+    private string? imagePreviewUrl;
+    private string? _copiedToast;
+    private System.Threading.Timer? _toastTimer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        isLoading = true;
+        try
+        {
+            var product = await ProductService.GetProductByIdAsync(Id);
+            if (product == null)
+            {
+                notFound = true;
+            }
+            else
+            {
+                dto = new ProductCreateUpdateDto
+                {
+                    Name = product.Name,
+                    Description = product.Description,
+                    Price = product.Price,
+                    ImageUrl = product.ImageUrl,
+                    ImagePublicId = product.ImagePublicId,
+                    IsActive = product.IsActive
+                };
+            }
+        }
+        catch (Exception)
+        {
+            errorMessage = "Đã xảy ra lỗi khi tải dữ liệu sản phẩm.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task CopyProductId()
+    {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", Id.ToString());
+            _copiedToast = $"Đã sao chép ID: {Id}";
+            _toastTimer?.Dispose();
+            _toastTimer = new System.Threading.Timer(_ =>
+            {
+                _copiedToast = null;
+                InvokeAsync(StateHasChanged);
+            }, null, 2500, Timeout.Infinite);
+            StateHasChanged();
+        }
+        catch { }
+    }
+
+    private async Task HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        fileErrorMessage = null;
+        var file = e.File;
+        
+        if (file != null)
+        {
+            if (!StorageService.IsValidImageFile(file.Name, file.ContentType, file.Size))
+            {
+                fileErrorMessage = "Định dạng file không hợp lệ hoặc kích thước vượt quá 5MB.";
+                selectedFile = null;
+            }
+            else
+            {
+                selectedFile = file;
+                try
+                {
+                    var maxAllowedSize = 5 * 1024 * 1024;
+                    using var stream = file.OpenReadStream(maxAllowedSize);
+                    using var ms = new MemoryStream();
+                    await stream.CopyToAsync(ms);
+                    var base64 = Convert.ToBase64String(ms.ToArray());
+                    imagePreviewUrl = $"data:{file.ContentType};base64,{base64}";
+                }
+                catch (Exception)
+                {
+                    fileErrorMessage = "Không thể hiển thị xem trước hình ảnh.";
+                }
+            }
+        }
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        if (fileErrorMessage != null) return;
+
+        isSubmitting = true;
+        errorMessage = null;
+        
+        string? oldPublicId = null;
+        bool hasNewUpload = false;
+
+        try
+        {
+            if (selectedFile != null)
+            {
+                oldPublicId = dto.ImagePublicId;
+                
+                var maxAllowedSize = 5 * 1024 * 1024;
+                using var stream = selectedFile.OpenReadStream(maxAllowedSize);
+                var uploadResult = await StorageService.UploadFileAsync(stream, selectedFile.Name, selectedFile.ContentType);
+                
+                dto.ImageUrl = uploadResult.FileUrl;
+                dto.ImagePublicId = uploadResult.PublicId;
+                hasNewUpload = true;
+            }
+
+            await ProductService.UpdateProductAsync(Id, dto);
+            
+            // If we successfully updated the database and we had an old image, delete the old image
+            if (hasNewUpload && !string.IsNullOrEmpty(oldPublicId))
+            {
+                await StorageService.DeleteFileAsync(oldPublicId);
+            }
+
+            NavigationManager.NavigateTo("/admin/products");
+        }
+        catch (Exception ex)
+        {
+            _ = ex;
+            errorMessage = "Không thể cập nhật sản phẩm. Vui lòng thử lại.";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+}

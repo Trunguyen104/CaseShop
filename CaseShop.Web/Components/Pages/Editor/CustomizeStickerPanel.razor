@@ -1,0 +1,89 @@
+@namespace CaseShop.Web.Components.Pages.Editor
+@using CaseShop.Web.DTOs
+
+<div>
+    <div class="flex items-center justify-between mb-2.5">
+        <span class="font-overline text-overline uppercase tracking-wider text-on-surface-variant font-semibold">Thư viện Sticker</span>
+        <span class="font-label-sm text-label-sm text-primary font-medium">@(Stickers?.Count ?? 0)+ mẫu</span>
+    </div>
+    @if (Loading)
+    {
+        <div class="flex items-center justify-center py-8">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+    }
+    else if (Error)
+    {
+        <p class="font-body-sm text-body-sm text-error flex items-center gap-1.5" role="alert">
+            <span class="material-symbols-outlined text-[16px]">error</span>
+            Không thể tải danh sách sticker. Vui lòng tải lại trang.
+        </p>
+    }
+    else if (Stickers == null || !Stickers.Any())
+    {
+        <p class="font-body-sm text-body-sm text-on-surface-variant text-center py-8">Chưa có sticker nào. Thêm sticker qua trang quản trị.</p>
+    }
+    else
+    {
+        <div class="grid grid-cols-3 gap-2.5" role="listbox" aria-label="Danh sách sticker">
+            @foreach (var sticker in Stickers)
+            {
+                var isSelected = sticker.Id == _pickerSelectedStickerId;
+                <button class="group relative aspect-square rounded-xl @(isSelected ? "bg-surface-container ring-2 ring-primary" : "bg-surface-container-low hover:bg-surface-container") p-2 flex flex-col items-center justify-center cursor-pointer transition-all"
+                        id="sticker-thumb-@sticker.Id"
+                        role="option"
+                        aria-selected="@isSelected.ToString().ToLower()"
+                        aria-label="Chọn sticker: @sticker.Name"
+                        @onclick="() => HandlePickerStickerClick(sticker.Id)"
+                        title="@sticker.Name">
+                    @if (!string.IsNullOrEmpty(sticker.ImageUrl))
+                    {
+                        <img src="@sticker.ImageUrl" alt="@sticker.Name" class="w-12 h-12 object-contain" loading="lazy"
+                             onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" />
+                        <span class="hidden w-10 h-10 rounded-full bg-primary text-on-primary items-center justify-center font-label-sm text-label-sm font-bold" aria-hidden="true">
+                            @sticker.Name.Substring(0, Math.Min(sticker.Name.Length, 2)).ToUpper()
+                        </span>
+                    }
+                    else
+                    {
+                        <span class="w-10 h-10 rounded-full bg-primary text-on-primary flex items-center justify-center font-label-sm text-label-sm font-bold" aria-hidden="true">
+                            @sticker.Name.Substring(0, Math.Min(sticker.Name.Length, 2)).ToUpper()
+                        </span>
+                    }
+                    <span class="font-overline text-[9px] text-on-surface-variant mt-1 truncate w-full text-center">@sticker.Name</span>
+                </button>
+            }
+        </div>
+        <button id="btn-add-sticker"
+                class="mt-3 w-full py-2.5 rounded-lg bg-primary text-on-primary hover:bg-neutral-800 font-label-md text-label-md font-semibold transition-colors flex items-center justify-center gap-1.5 shadow-sm"
+                @onclick="HandleAddSticker"
+                disabled="@(!EditorReady || _pickerSelectedStickerId == null)"
+                aria-label="Thêm sticker đã chọn vào canvas">
+            <span class="material-symbols-outlined text-[18px]">add_circle</span>
+            Thêm vào canvas
+        </button>
+    }
+</div>
+
+@code {
+    [Parameter] public IReadOnlyList<StickerDto>? Stickers { get; set; }
+    [Parameter] public bool Loading { get; set; }
+    [Parameter] public bool Error { get; set; }
+    [Parameter] public bool EditorReady { get; set; }
+    [Parameter] public EventCallback<StickerDto> OnAddSticker { get; set; }
+
+    private Guid? _pickerSelectedStickerId;
+
+    private void HandlePickerStickerClick(Guid stickerId)
+    {
+        _pickerSelectedStickerId = (_pickerSelectedStickerId == stickerId) ? null : stickerId;
+    }
+
+    private async Task HandleAddSticker()
+    {
+        if (!EditorReady || _pickerSelectedStickerId == null || Stickers == null) return;
+        var sticker = Stickers.FirstOrDefault(s => s.Id == _pickerSelectedStickerId);
+        if (sticker == null) return;
+        await OnAddSticker.InvokeAsync(sticker);
+    }
+}

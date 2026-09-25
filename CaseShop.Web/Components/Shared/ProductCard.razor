@@ -1,0 +1,26 @@
+@using CaseShop.Web.DTOs
+
+<div class="group flex flex-col bg-surface-container-lowest rounded-xl p-3.5 shadow-sm hover:shadow-md transition-all duration-300">
+    <div class="relative w-full aspect-[4/5] bg-surface-container-low rounded-lg overflow-hidden flex items-center justify-center p-6 mb-3">
+        <img alt="@Product.Name" class="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500" src="@(string.IsNullOrEmpty(Product.ImageUrl) ? "https://lh3.googleusercontent.com/aida-public/AB6AXuAGsDnGn6eLpbJTLFIKpxcmuPjz_2SFqqifYtM-JKQzSIw7LcjOMgRjaSDtkn-lalVWzCqVUa1FL1NyGo95ZHfaeV92nrzOpkQK5H_oLnLlwoqpOVLE6eabn9bPT-OfeofGDHbOsFmeTIn5M0O5X8-vEAU1XjiYXNDUO_ADlCVYDtJTZ9NZ6ZC_nA9OFeG4E8P4f5pRnSGKG8NrMvC-soCtz39sRUw31i0UMMhRYOWa1wK8r-h-FYsPuA" : Product.ImageUrl)">
+    </div>
+    <div class="flex flex-col flex-1">
+        <h3 class="font-headline-sm text-[16px] leading-snug font-semibold text-on-surface group-hover:text-primary transition-colors line-clamp-1 mb-2">@Product.Name</h3>
+        <div class="mt-auto flex items-center justify-between pt-2 border-t border-outline-variant">
+            <span class="font-semibold text-on-surface text-[16px]">@Product.Price.ToString("N0")₫</span>
+            <a href="/products/@Product.Id" class="h-8 px-3 rounded-lg bg-surface-container-low hover:bg-primary hover:text-on-primary text-on-surface font-label-sm text-label-sm transition-colors flex items-center justify-center">Chi tiết</a>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public ProductDto Product { get; set; } = default!;
+
+    private bool IsFavorite { get; set; }
+
+    private void ToggleFavorite()
+    {
+        IsFavorite = !IsFavorite;
+    }
+}

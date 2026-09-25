@@ -1,0 +1,27 @@
+<section class="p-6 sm:p-7 rounded-xl bg-surface-container-low flex flex-col gap-4 @Class">
+    <div class="flex items-center gap-2 text-on-surface">
+        <span class="material-symbols-outlined text-[20px]">verified_user</span>
+        <span class="font-label-md text-label-md font-semibold tracking-tight uppercase">Cam kết dịch vụ CaseShop</span>
+    </div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="flex items-start gap-3 bg-surface-container-lowest p-4 rounded-lg shadow-sm">
+            <span class="material-symbols-outlined text-primary text-[24px] shrink-0" style="font-variation-settings: 'FILL' 1;">published_with_changes</span>
+            <div class="space-y-0.5">
+                <span class="font-label-md text-label-md font-semibold text-on-surface block">Đổi mới trong 30 ngày</span>
+                <p class="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">1-đổi-1 không mất phí nếu sản phẩm có lỗi sản xuất.</p>
+            </div>
+        </div>
+        <div class="flex items-start gap-3 bg-surface-container-lowest p-4 rounded-lg shadow-sm">
+            <span class="material-symbols-outlined text-primary text-[24px] shrink-0" style="font-variation-settings: 'FILL' 1;">shield</span>
+            <div class="space-y-0.5">
+                <span class="font-label-md text-label-md font-semibold text-on-surface block">Bảo hành 12 tháng</span>
+                <p class="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">Cam kết chất lượng sản phẩm trong suốt 365 ngày sử dụng.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+@code {
+    [Parameter]
+    public string Class { get; set; } = "";
+}

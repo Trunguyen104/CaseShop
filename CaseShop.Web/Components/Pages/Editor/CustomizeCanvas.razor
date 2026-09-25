@@ -1,0 +1,66 @@
+@namespace CaseShop.Web.Components.Pages.Editor
+@using CaseShop.Web.DTOs
+
+<main class="studio-canvas @(PreviewMode ? "lg:col-span-12" : "lg:col-span-6") h-full flex flex-col items-center justify-between p-4 lg:p-6 relative overflow-hidden bg-gradient-to-b from-surface-container-low/40 via-surface to-surface-container-low/60">
+    <div class="absolute top-4 left-6 flex items-center gap-2">
+        <span class="w-2 h-2 rounded-full @(EditorReady ? "bg-emerald-500 animate-pulse" : "bg-outline")"></span>
+        <span class="font-overline text-overline uppercase tracking-widest text-on-surface-variant">
+            @(EditorReady ? $"{SelectedModel?.Name ?? "Ốp lưng"} • {SelectedModel?.CanvasWidth ?? 350} × {SelectedModel?.CanvasHeight ?? 700} mm" : "Đang khởi động...")
+        </span>
+    </div>
+    <div class="absolute top-4 right-6 flex items-center gap-1 text-on-surface-variant font-label-sm text-label-sm">
+        <span class="material-symbols-outlined text-[16px]">shield</span>
+        <span>Khung minh họa 2D</span>
+    </div>
+    <div class="studio-viewport flex items-center justify-center">
+        <div class="studio-paper relative py-4"
+             style="width: @(340 * Zoom / 100)px; aspect-ratio: @(SelectedModel?.CanvasWidth ?? 350) / @(SelectedModel?.CanvasHeight ?? 700);"
+             id="editor-canvas-container"
+             aria-label="Vùng thiết kế ốp lưng">
+            <canvas id="editor-canvas"
+                    aria-label="Canvas thiết kế ốp lưng"
+                    role="img"
+                    tabindex="0"></canvas>
+        </div>
+    </div>
+    <div class="flex items-center gap-1.5 px-3 py-1.5 bg-surface-container-lowest/90 backdrop-blur-md rounded-full shadow-md z-30">
+        <button class="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container transition-colors"
+                title="Thu nhỏ" @onclick="() => ChangeZoom(-10)" disabled="@(!EditorReady || Zoom <= 50)">
+            <span class="material-symbols-outlined text-[18px]">zoom_out</span>
+        </button>
+        <span class="font-label-sm text-label-sm font-semibold px-2 text-on-surface">@Zoom%</span>
+        <button class="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container transition-colors"
+                title="Phóng to" @onclick="() => ChangeZoom(10)" disabled="@(!EditorReady || Zoom >= 150)">
+            <span class="material-symbols-outlined text-[18px]">zoom_in</span>
+        </button>
+        <div class="w-px h-4 bg-outline-variant mx-1"></div>
+        <button class="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container transition-colors"
+                title="Căn giữa lớp đang chọn" @onclick="OnCenter" disabled="@(!EditorReady || PreviewMode)">
+            <span class="material-symbols-outlined text-[18px]">align_horizontal_center</span>
+        </button>
+        <button class="w-8 h-8 rounded-full flex items-center justify-center bg-surface-container text-primary transition-colors"
+                title="Bật/Tắt Lưới" @onclick="OnToggleGrid" disabled="@(!EditorReady)">
+            <span class="material-symbols-outlined text-[18px]">grid_4x4</span>
+        </button>
+    </div>
+</main>
+
+@code {
+    [Parameter] public PhoneModelDto? SelectedModel { get; set; }
+    [Parameter] public bool EditorReady { get; set; }
+    [Parameter] public bool PreviewMode { get; set; }
+    [Parameter] public int Zoom { get; set; } = 100;
+    [Parameter] public EventCallback<int> ZoomChanged { get; set; }
+    [Parameter] public EventCallback OnCenter { get; set; }
+    [Parameter] public EventCallback OnToggleGrid { get; set; }
+
+    private async Task ChangeZoom(int delta)
+    {
+        var newZoom = Math.Clamp(Zoom + delta, 50, 150);
+        if (newZoom != Zoom)
+        {
+            Zoom = newZoom;
+            await ZoomChanged.InvokeAsync(newZoom);
+        }
+    }
+}

@@ -1,0 +1,119 @@
+@rendermode InteractiveServer
+@inject NavigationManager NavigationManager
+@implements IDisposable
+
+<header class="fixed top-0 left-0 right-0 z-50 bg-surface/90 backdrop-blur-xl border-b border-outline-variant">
+    <div class="h-16 max-w-7xl mx-auto px-margin-mobile lg:px-margin flex items-center justify-between gap-4">
+        <a href="/" class="flex items-center gap-3 shrink-0 cursor-pointer text-decoration-none" @onclick="CloseMenu">
+            <img alt="CASESHOP Logo" class="h-8 w-auto object-contain" src="/images/Logo.webp" />
+            <!-- <span class="font-headline-sm text-headline-sm tracking-tight text-on-surface uppercase font-semibold">CASESHOP</span> -->
+        </a>
+        <nav class="hidden md:flex items-center gap-8">
+            <NavLink class="transition-colors text-on-surface-variant hover:text-on-surface font-label-md text-label-md" ActiveClass="text-on-surface font-semibold" href="/shop">Cửa hàng</NavLink>
+            <NavLink class="font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-colors" ActiveClass="text-on-surface font-semibold" href="/customize/select">Thiết kế</NavLink>
+            <NavLink class="font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-colors" ActiveClass="text-on-surface font-semibold" href="/track">Theo dõi đơn hàng</NavLink>
+            <NavLink class="font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-colors" ActiveClass="text-on-surface font-semibold" href="/about">Giới thiệu</NavLink>
+            <NavLink class="font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-colors" ActiveClass="text-on-surface font-semibold" href="/contact">Liên hệ</NavLink>
+        </nav>
+        <div class="flex items-center gap-2 sm:gap-4 shrink-0">
+            <!-- <button aria-label="Tìm kiếm" class="p-2 text-on-surface-variant hover:text-on-surface transition-colors flex items-center justify-center">
+                <span class="material-symbols-outlined text-[20px]">search</span>
+            </button> -->
+            <a aria-label="Giỏ hàng" class="relative p-2 text-on-surface-variant hover:text-on-surface transition-colors flex items-center justify-center" href="/cart" @onclick="CloseMenu">
+                <span class="material-symbols-outlined text-[20px]">shopping_bag</span>
+                <span id="cart-count" class="hidden absolute top-1 right-0 min-w-[18px] h-[18px] px-1 bg-primary text-on-primary text-[10px] font-semibold rounded-full flex items-center justify-center leading-none">0</span>
+            </a>
+            <!-- Mobile hamburger menu button -->
+            <button class="md:hidden p-2 text-on-surface-variant hover:text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 rounded-lg transition-colors flex items-center justify-center"
+                    aria-label="@(_isOpen ? "Đóng menu điều hướng" : "Mở menu điều hướng")"
+                    aria-expanded="@_isOpen"
+                    @onclick="ToggleMenu">
+                <span class="material-symbols-outlined text-[24px]">@(_isOpen ? "close" : "menu")</span>
+            </button>
+            <!-- <a class="w-8 h-8 rounded-full bg-primary flex items-center justify-center" href="/account">
+                <span class="material-symbols-outlined text-on-primary text-[18px]">person</span>
+            </a> -->
+        </div>
+    </div>
+
+    <!-- Mobile Navigation Drawer -->
+    @if (_isOpen)
+    {
+        <div class="md:hidden border-t border-outline-variant bg-surface/98 backdrop-blur-xl px-margin-mobile py-4 shadow-lg">
+            <nav class="flex flex-col gap-1.5" aria-label="Điều hướng trên thiết bị di động">
+                <NavLink class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low transition-colors font-label-md text-label-md"
+                         ActiveClass="bg-surface-container text-on-surface font-semibold"
+                         href="/shop"
+                         @onclick="CloseMenu">
+                    <span class="material-symbols-outlined text-[20px]">storefront</span>
+                    <span>Cửa hàng</span>
+                </NavLink>
+                <NavLink class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low transition-colors font-label-md text-label-md"
+                         ActiveClass="bg-surface-container text-on-surface font-semibold"
+                         href="/customize/select"
+                         @onclick="CloseMenu">
+                    <span class="material-symbols-outlined text-[20px]">palette</span>
+                    <span>Thiết kế</span>
+                </NavLink>
+                <NavLink class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low transition-colors font-label-md text-label-md"
+                         ActiveClass="bg-surface-container text-on-surface font-semibold"
+                         href="/track"
+                         @onclick="CloseMenu">
+                    <span class="material-symbols-outlined text-[20px]">local_shipping</span>
+                    <span>Theo dõi đơn hàng</span>
+                </NavLink>
+                <NavLink class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low transition-colors font-label-md text-label-md"
+                         ActiveClass="bg-surface-container text-on-surface font-semibold"
+                         href="/about"
+                         @onclick="CloseMenu">
+                    <span class="material-symbols-outlined text-[20px]">info</span>
+                    <span>Giới thiệu</span>
+                </NavLink>
+                <NavLink class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low transition-colors font-label-md text-label-md"
+                         ActiveClass="bg-surface-container text-on-surface font-semibold"
+                         href="/contact"
+                         @onclick="CloseMenu">
+                    <span class="material-symbols-outlined text-[20px]">mail</span>
+                    <span>Liên hệ</span>
+                </NavLink>
+            </nav>
+        </div>
+    }
+</header>
+
+@code {
+    private bool _isOpen;
+
+    protected override void OnInitialized()
+    {
+        NavigationManager.LocationChanged += HandleLocationChanged;
+    }
+
+    private void ToggleMenu()
+    {
+        _isOpen = !_isOpen;
+    }
+
+    private void CloseMenu()
+    {
+        if (_isOpen)
+        {
+            _isOpen = false;
+        }
+    }
+
+    private void HandleLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        if (_isOpen)
+        {
+            _isOpen = false;
+            InvokeAsync(StateHasChanged);
+        }
+    }
+
+    public void Dispose()
+    {
+        NavigationManager.LocationChanged -= HandleLocationChanged;
+    }
+}
+

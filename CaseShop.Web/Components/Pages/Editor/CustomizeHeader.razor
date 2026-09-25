@@ -1,0 +1,278 @@
+@namespace CaseShop.Web.Components.Pages.Editor
+@using CaseShop.Web.DTOs
+
+<div class="w-full bg-surface-container-lowest px-3 lg:px-8 py-2.5 sm:py-3 border-b border-outline-variant flex flex-wrap items-center justify-between gap-3 z-30 relative">
+    <div class="flex items-center gap-2 sm:gap-3 w-full sm:w-auto justify-between sm:justify-start">
+        <a class="flex items-center gap-1.5 text-on-surface-variant hover:text-on-surface transition-colors font-label-md text-label-md" href="/customize/select">
+            <span class="material-symbols-outlined text-[18px]">arrow_back</span>
+            <span class="hidden sm:inline">Quay lại</span>
+        </a>
+        <div class="w-1.5 h-1.5 rounded-full bg-outline-variant hidden sm:block"></div>
+        <div class="flex items-center gap-2">
+            <span class="font-overline text-overline uppercase px-2 py-0.5 rounded bg-surface-container text-on-surface-variant font-semibold tracking-wider hidden sm:inline-block">Design Studio</span>
+            <span class="font-headline-sm text-base sm:text-headline-sm text-on-surface font-semibold tracking-tight">Trình thiết kế</span>
+        </div>
+
+        <!-- Mobile Model Switcher Trigger -->
+        <button type="button"
+                @onclick="ToggleDropdown"
+                class="sm:hidden flex items-center gap-1.5 px-2.5 py-1 bg-surface-container-low border border-outline-variant/60 rounded-lg text-xs font-semibold text-on-surface">
+            <span class="material-symbols-outlined text-[16px] text-primary">smartphone</span>
+            <span class="truncate max-w-[110px]">@(SelectedModel?.Name ?? "Dòng máy")</span>
+            <span class="material-symbols-outlined text-[16px] text-on-surface-variant">expand_more</span>
+        </button>
+    </div>
+
+    <!-- Desktop / Tablet Interactive Model Switcher Dropdown -->
+    <div class="relative hidden sm:block">
+        <button type="button"
+                @onclick="ToggleDropdown"
+                class="flex items-center gap-2.5 px-3.5 py-1.5 bg-surface-container-low hover:bg-surface-container border border-outline-variant/60 rounded-xl transition-all shadow-sm cursor-pointer group text-left"
+                title="Bấm để đổi dòng điện thoại">
+            <span class="material-symbols-outlined text-[20px] text-primary group-hover:scale-110 transition-transform">smartphone</span>
+            <div class="flex items-center gap-1.5 text-xs text-on-surface">
+                <span class="font-bold text-on-surface">@(SelectedModel?.Name ?? "Dòng máy chuẩn")</span>
+                <span class="text-on-surface-variant font-mono font-medium">(@(SelectedModel?.CanvasWidth ?? 350)×@(SelectedModel?.CanvasHeight ?? 700) mm)</span>
+            </div>
+            <div class="flex items-center gap-0.5 text-primary text-xs font-semibold pl-1 border-l border-outline-variant/60 ml-0.5">
+                <span>Đổi mẫu</span>
+                <span class="material-symbols-outlined text-[16px] transition-transform duration-200 @(_showDropdown ? "rotate-180" : "")">expand_more</span>
+            </div>
+        </button>
+
+        @if (_showDropdown)
+        {
+            <!-- Backdrop -->
+            <div class="fixed inset-0 z-40" @onclick="CloseDropdown"></div>
+
+            <div class="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-96 bg-surface-container-lowest border border-outline-variant rounded-2xl shadow-2xl p-3 z-50 animate-in fade-in zoom-in-95 duration-150">
+                <div class="flex items-center justify-between pb-2 mb-2 border-b border-outline-variant/50">
+                    <span class="font-label-md text-xs font-bold text-on-surface uppercase tracking-wider flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-[16px] text-primary">category</span>
+                        Chọn mẫu điện thoại
+                    </span>
+                    <a href="/customize/select" class="text-xs text-primary hover:underline flex items-center gap-0.5">
+                        <span>Trang chọn</span>
+                        <span class="material-symbols-outlined text-[14px]">open_in_new</span>
+                    </a>
+                </div>
+
+                <!-- Brand Filter Tabs -->
+                <div class="flex items-center gap-1 overflow-x-auto pb-2 mb-2 no-scrollbar text-xs">
+                    <button type="button"
+                            @onclick="() => _selectedBrandFilter = null"
+                            class="px-2.5 py-1 rounded-full font-medium whitespace-nowrap transition-colors @(_selectedBrandFilter == null ? "bg-primary text-on-primary font-semibold" : "bg-surface-container text-on-surface-variant hover:bg-surface-container-high")">
+                        Tất cả (@(AvailableModels?.Count ?? 0))
+                    </button>
+                    @foreach (var brand in UniqueBrands)
+                    {
+                        <button type="button"
+                                @onclick="() => _selectedBrandFilter = brand"
+                                class="px-2.5 py-1 rounded-full font-medium whitespace-nowrap transition-colors @(_selectedBrandFilter == brand ? "bg-primary text-on-primary font-semibold" : "bg-surface-container text-on-surface-variant hover:bg-surface-container-high")">
+                            @brand
+                        </button>
+                    }
+                </div>
+
+                <!-- Search Input -->
+                <div class="relative mb-2">
+                    <span class="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant text-[16px]">search</span>
+                    <input type="text"
+                           @bind="_searchQuery"
+                           @bind:event="oninput"
+                           placeholder="Tìm tên dòng máy (ví dụ: S24, Pixel, Pro...)"
+                           class="w-full pl-8 pr-3 py-1.5 text-xs bg-surface-container-low border border-outline-variant/50 rounded-lg text-on-surface placeholder:text-on-surface-variant/60 focus:outline-none focus:border-primary" />
+                </div>
+
+                <!-- Models List -->
+                <div class="max-h-72 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
+                    @if (!FilteredModels.Any())
+                    {
+                        <div class="py-6 text-center text-xs text-on-surface-variant">
+                            Không tìm thấy dòng máy phù hợp.
+                        </div>
+                    }
+                    else
+                    {
+                        @foreach (var model in FilteredModels)
+                        {
+                            var isCurrent = SelectedModel?.Id == model.Id;
+                            <button type="button"
+                                    @onclick="() => HandleSelect(model)"
+                                    class="w-full flex items-center justify-between px-3 py-2 rounded-xl text-left transition-colors cursor-pointer group @(isCurrent ? "bg-primary/10 border border-primary/20 text-primary" : "hover:bg-surface-container-low text-on-surface")">
+                                <div class="flex flex-col min-w-0 pr-2">
+                                    <div class="flex items-center gap-1.5">
+                                        <span class="font-semibold text-xs truncate @(isCurrent ? "text-primary" : "text-on-surface")">@model.Name</span>
+                                        <span class="text-[10px] px-1.5 py-0.2 rounded bg-surface-container font-mono text-on-surface-variant">@GetCutoutBadge(model)</span>
+                                    </div>
+                                    <div class="flex items-center gap-2 text-[10px] text-on-surface-variant mt-0.5">
+                                        <span class="font-medium">@model.PhoneBrandName</span>
+                                        <span>•</span>
+                                        <span class="font-mono">@model.CanvasWidth × @model.CanvasHeight mm</span>
+                                    </div>
+                                </div>
+                                @if (isCurrent)
+                                {
+                                    <span class="material-symbols-outlined text-[18px] text-primary shrink-0">check_circle</span>
+                                }
+                                else
+                                {
+                                    <span class="material-symbols-outlined text-[16px] text-on-surface-variant/40 group-hover:text-primary transition-colors shrink-0">arrow_forward</span>
+                                }
+                            </button>
+                        }
+                    }
+                </div>
+            </div>
+        }
+    </div>
+
+    @if (_showDropdown)
+    {
+        <!-- Mobile Dropdown Dialog -->
+        <div class="sm:hidden fixed inset-0 z-50 flex flex-col justify-end bg-black/50 backdrop-blur-sm">
+            <div class="fixed inset-0" @onclick="CloseDropdown"></div>
+            <div class="relative bg-surface-container-lowest rounded-t-3xl p-4 max-h-[80vh] flex flex-col z-10 shadow-2xl">
+                <div class="w-12 h-1 bg-outline-variant rounded-full mx-auto mb-3"></div>
+                <div class="flex items-center justify-between pb-3 mb-2 border-b border-outline-variant/50">
+                    <span class="font-label-md text-sm font-bold text-on-surface">Chọn dòng điện thoại</span>
+                    <button type="button" @onclick="CloseDropdown" class="text-on-surface-variant">
+                        <span class="material-symbols-outlined">close</span>
+                    </button>
+                </div>
+
+                <!-- Brand Filter Tabs -->
+                <div class="flex items-center gap-1 overflow-x-auto pb-2 mb-2 no-scrollbar text-xs">
+                    <button type="button"
+                            @onclick="() => _selectedBrandFilter = null"
+                            class="px-3 py-1.5 rounded-full font-medium whitespace-nowrap transition-colors @(_selectedBrandFilter == null ? "bg-primary text-on-primary font-semibold" : "bg-surface-container text-on-surface-variant")">
+                        Tất cả
+                    </button>
+                    @foreach (var brand in UniqueBrands)
+                    {
+                        <button type="button"
+                                @onclick="() => _selectedBrandFilter = brand"
+                                class="px-3 py-1.5 rounded-full font-medium whitespace-nowrap transition-colors @(_selectedBrandFilter == brand ? "bg-primary text-on-primary font-semibold" : "bg-surface-container text-on-surface-variant")">
+                            @brand
+                        </button>
+                    }
+                </div>
+
+                <div class="overflow-y-auto space-y-1.5 max-h-[50vh]">
+                    @foreach (var model in FilteredModels)
+                    {
+                        var isCurrent = SelectedModel?.Id == model.Id;
+                        <button type="button"
+                                @onclick="() => HandleSelect(model)"
+                                class="w-full flex items-center justify-between p-3 rounded-xl text-left @(isCurrent ? "bg-primary/10 border border-primary/20 text-primary" : "bg-surface-container-low text-on-surface")">
+                            <div>
+                                <p class="font-semibold text-xs @(isCurrent ? "text-primary" : "text-on-surface")">@model.Name</p>
+                                <p class="text-[10px] text-on-surface-variant">@model.PhoneBrandName • @model.CanvasWidth × @model.CanvasHeight mm (@GetCutoutBadge(model))</p>
+                            </div>
+                            @if (isCurrent)
+                            {
+                                <span class="material-symbols-outlined text-primary text-[18px]">check_circle</span>
+                            }
+                        </button>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+
+    <CustomizeActionBar EditorReady="EditorReady"
+                        PreviewMode="PreviewMode"
+                        ExportInProgress="ExportInProgress"
+                        OrderInProgress="OrderInProgress"
+                        OnRemoveSelected="OnRemoveSelected"
+                        OnReset="OnReset"
+                        OnTogglePreview="OnTogglePreview"
+                        OnExport="OnExport"
+                        OnOrder="OnOrder" />
+</div>
+
+@code {
+    [Parameter] public PhoneModelDto? SelectedModel { get; set; }
+    [Parameter] public IReadOnlyList<PhoneModelDto>? AvailableModels { get; set; }
+    [Parameter] public EventCallback<PhoneModelDto> OnSelectModel { get; set; }
+    [Parameter] public bool EditorReady { get; set; }
+    [Parameter] public bool PreviewMode { get; set; }
+    [Parameter] public bool ExportInProgress { get; set; }
+    [Parameter] public bool OrderInProgress { get; set; }
+    [Parameter] public EventCallback OnRemoveSelected { get; set; }
+    [Parameter] public EventCallback OnReset { get; set; }
+    [Parameter] public EventCallback OnTogglePreview { get; set; }
+    [Parameter] public EventCallback OnExport { get; set; }
+    [Parameter] public EventCallback OnOrder { get; set; }
+
+    private bool _showDropdown = false;
+    private string? _selectedBrandFilter = null;
+    private string _searchQuery = string.Empty;
+
+    private IEnumerable<string> UniqueBrands =>
+        AvailableModels?
+            .Select(m => m.PhoneBrandName)
+            .Where(b => !string.IsNullOrWhiteSpace(b))
+            .Distinct()
+            ?? Enumerable.Empty<string>();
+
+    private IEnumerable<PhoneModelDto> FilteredModels
+    {
+        get
+        {
+            if (AvailableModels == null) return Enumerable.Empty<PhoneModelDto>();
+
+            var list = AvailableModels.AsEnumerable();
+
+            if (!string.IsNullOrWhiteSpace(_selectedBrandFilter))
+            {
+                list = list.Where(m => m.PhoneBrandName == _selectedBrandFilter);
+            }
+
+            if (!string.IsNullOrWhiteSpace(_searchQuery))
+            {
+                var q = _searchQuery.Trim().ToLowerInvariant();
+                list = list.Where(m => m.Name.ToLowerInvariant().Contains(q) ||
+                                       m.PhoneBrandName.ToLowerInvariant().Contains(q) ||
+                                       m.Slug.ToLowerInvariant().Contains(q));
+            }
+
+            return list;
+        }
+    }
+
+    private string GetCutoutBadge(PhoneModelDto model)
+    {
+        var slug = (model.Slug ?? string.Empty).ToLowerInvariant();
+        var w = model.CameraCutoutWidth;
+        var h = model.CameraCutoutHeight;
+        var r = model.CameraCutoutRadius;
+
+        if ((Math.Abs(w - h) <= 12 && r >= w * 0.38m) || (slug.Contains("ultra") && slug.Contains("xiaomi")))
+            return "Tròn 4 mắt";
+        if (slug.Contains("16") && !slug.Contains("pro"))
+            return "Dọc 2 mắt";
+        if (h / Math.Max(1m, w) >= 1.35m || slug.Contains("galaxy"))
+            return "Dọc 3 mắt";
+        if (w / Math.Max(1m, h) >= 1.55m || slug.Contains("pixel"))
+            return "Dải Visor ngang";
+        if (slug.Contains("15") && !slug.Contains("pro"))
+            return "2 mắt chéo";
+
+        return "3 mắt Pro";
+    }
+
+    private void ToggleDropdown() => _showDropdown = !_showDropdown;
+    private void CloseDropdown()
+    {
+        _showDropdown = false;
+        _searchQuery = string.Empty;
+    }
+
+    private async Task HandleSelect(PhoneModelDto model)
+    {
+        _showDropdown = false;
+        _searchQuery = string.Empty;
+        await OnSelectModel.InvokeAsync(model);
+    }
+}

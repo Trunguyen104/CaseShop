@@ -1,0 +1,74 @@
+<div class="flex min-h-[calc(100vh-4rem)] w-full bg-surface">
+    <aside class="hidden w-64 shrink-0 flex-col border-r border-outline-variant bg-surface-container-lowest lg:flex">
+
+        <nav class="flex-1 space-y-1 p-4" aria-label="Điều hướng quản trị">
+            @foreach (var item in NavigationItems)
+            {
+                <a href="@item.Href" class="flex items-center gap-3 rounded-lg px-3 py-2.5 font-label-md text-label-md transition-colors @GetLinkClass(item.Section)">
+                    <span class="material-symbols-outlined text-[20px]">@item.Icon</span>
+                    <span>@item.Label</span>
+                </a>
+            }
+        </nav>
+         <!-- Admin User Card -->
+        <div class="pt-6 mt-6 bg-surface-container-low/60 rounded-lg p-3">
+            <AuthorizeView Roles="Admin">
+                <Authorized>
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="w-9 h-9 rounded-full bg-primary-container text-on-primary flex items-center justify-center font-label-md text-label-md font-semibold shrink-0 uppercase">
+                            @(context.User.Identity?.Name?.Length > 0 ? context.User.Identity.Name[..1] : "A")
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <p class="font-label-md text-label-md font-semibold text-on-surface truncate">@context.User.Identity?.Name</p>
+                            <p class="font-body-sm text-body-sm text-on-surface-variant text-xs">Quản trị viên</p>
+                        </div>
+                    </div>
+                </Authorized>
+            </AuthorizeView>
+            <a href="/admin/logout"
+               class="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-md bg-surface-container-lowest hover:bg-surface-container-high text-on-surface-variant hover:text-error transition-colors font-label-sm text-label-sm">
+                <span class="material-symbols-outlined text-[16px]">logout</span>
+                <span>Đăng xuất</span>
+            </a>
+        </div>
+    </aside>
+
+    <div class="min-w-0 flex-1">
+        <div class="sticky top-16 z-30 flex items-center gap-2 overflow-x-auto border-b border-outline-variant bg-surface/95 px-margin-mobile py-2 backdrop-blur lg:hidden">
+            @foreach (var item in NavigationItems)
+            {
+                <a href="@item.Href" aria-label="@item.Label" class="flex h-9 shrink-0 items-center gap-2 rounded-lg px-3 font-label-sm text-label-sm @GetLinkClass(item.Section)">
+                    <span class="material-symbols-outlined text-[18px]">@item.Icon</span>
+                    <span>@item.ShortLabel</span>
+                </a>
+            }
+        </div>
+        <div class="admin-page mx-auto w-full max-w-[1440px] px-margin-mobile py-6 lg:px-margin lg:py-8">
+            @ChildContent
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public RenderFragment ChildContent { get; set; } = default!;
+
+    [Parameter]
+    public string ActiveSection { get; set; } = "dashboard";
+
+    private static readonly AdminNavigationItem[] NavigationItems =
+    [
+        new("dashboard", "Tổng quan", "Tổng quan", "/admin", "dashboard"),
+        new("products", "Sản phẩm", "Sản phẩm", "/admin/products", "inventory_2"),
+        new("stickers", "Sticker", "Sticker", "/admin/stickers", "interests"),
+        new("phone-brands", "Thương hiệu", "Thương hiệu", "/admin/phone-brands", "branding_watermark"),
+        new("phone-models", "Dòng điện thoại", "Dòng máy", "/admin/phone-models", "smartphone"),
+        new("orders", "Đơn hàng", "Đơn hàng", "/admin/orders", "receipt_long")
+    ];
+
+    private string GetLinkClass(string section) => section == ActiveSection
+        ? "bg-primary text-on-primary shadow-sm"
+        : "text-on-surface-variant hover:bg-surface-container hover:text-on-surface";
+
+    private sealed record AdminNavigationItem(string Section, string Label, string ShortLabel, string Href, string Icon);
+}

@@ -1,0 +1,64 @@
+@namespace CaseShop.Web.Components.Pages.Admin.Orders.Components
+
+<div class="bg-surface-container-lowest border border-outline-variant/60 rounded-2xl shadow-sm p-5 sm:p-6 space-y-4">
+    <div class="flex items-center justify-between pb-3 border-b border-outline-variant/50">
+        <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-primary text-[20px]">person</span>
+            <h3 class="font-headline-sm text-base font-bold text-on-surface">Thông tin khách hàng</h3>
+        </div>
+        <button type="button" 
+                @onclick="() => OnCopyCustomerInfo.InvokeAsync()"
+                class="text-xs text-primary hover:underline flex items-center gap-1" 
+                title="Sao chép toàn bộ thông tin">
+            <span class="material-symbols-outlined text-[14px]">content_copy</span>
+            <span>Sao chép</span>
+        </button>
+    </div>
+
+    <div class="space-y-3 font-body-sm text-sm">
+        <div>
+            <span class="text-xs text-on-surface-variant block mb-0.5">Họ và tên</span>
+            <span class="font-semibold text-on-surface text-base">@CustomerName</span>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+            <div>
+                <span class="text-xs text-on-surface-variant block mb-0.5">Số điện thoại</span>
+                <a href="tel:@Phone" class="text-primary hover:underline font-semibold flex items-center gap-1 font-mono">
+                    <span class="material-symbols-outlined text-[16px]">call</span>
+                    <span>@Phone</span>
+                </a>
+            </div>
+            <div>
+                <span class="text-xs text-on-surface-variant block mb-0.5">Email</span>
+                <a href="mailto:@Email" class="text-on-surface hover:underline font-medium text-xs break-all block">
+                    @Email
+                </a>
+            </div>
+        </div>
+
+        <div class="pt-1">
+            <span class="text-xs text-on-surface-variant block mb-0.5">Địa chỉ giao hàng</span>
+            <p class="p-3 bg-surface-container-low rounded-xl text-on-surface font-medium leading-relaxed text-xs sm:text-sm border border-outline-variant/40">
+                @Address
+            </p>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public string CustomerName { get; set; } = string.Empty;
+
+    [Parameter]
+    public string Phone { get; set; } = string.Empty;
+
+    [Parameter]
+    public string Email { get; set; } = string.Empty;
+
+    [Parameter]
+    public string Address { get; set; } = string.Empty;
+
+    [Parameter]
+    public EventCallback OnCopyCustomerInfo { get; set; }
+}

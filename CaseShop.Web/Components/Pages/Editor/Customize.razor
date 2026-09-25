@@ -1,0 +1,555 @@
+@page "/customize"
+@rendermode InteractiveServer
+@using CaseShop.Web.DTOs
+@using CaseShop.Web.Services
+@using Microsoft.AspNetCore.Components.Forms
+@inject IJSRuntime JS
+@inject IStickerService StickerService
+@inject IStorageService StorageService
+@inject IPhoneCatalogService CatalogService
+@inject ICartService CartService
+@inject IProductService ProductService
+@inject NavigationManager NavigationManager
+@implements IAsyncDisposable
+
+<PageTitle>Thiết kế ốp lưng - CASESHOP</PageTitle>
+
+<div class="flex flex-col w-full min-w-0 select-none overflow-hidden">
+
+    @if (_exportErrorMessage is not null)
+    {
+        <div class="fixed top-20 left-1/2 -translate-x-1/2 z-50 px-4 py-3 bg-error-container text-error rounded-lg shadow-lg font-body-sm text-body-sm flex items-center gap-2" role="alert">
+            <span class="material-symbols-outlined text-[18px]">error</span>
+            @_exportErrorMessage
+        </div>
+    }
+    @if (_draftRestoredMessage is not null)
+    {
+        <div class="fixed top-20 left-1/2 -translate-x-1/2 z-50 px-4 py-3 bg-surface-container-high text-on-surface rounded-xl shadow-xl font-body-sm text-body-sm flex items-center gap-3 border border-outline-variant/60" role="status">
+            <span class="material-symbols-outlined text-[20px] text-primary">history</span>
+            <span>@_draftRestoredMessage</span>
+            <button type="button" class="ml-2 text-on-surface-variant hover:text-on-surface p-0.5 rounded transition-colors" @onclick="() => _draftRestoredMessage = null">
+                <span class="material-symbols-outlined text-[16px]">close</span>
+            </button>
+        </div>
+    }
+    @if (_exportWarningMessage is not null)
+    {
+        <div class="fixed top-20 left-1/2 -translate-x-1/2 z-50 px-4 py-3 bg-surface-container text-on-surface rounded-lg shadow-lg font-body-sm text-body-sm flex items-center gap-2" role="status">
+            <span class="material-symbols-outlined text-[18px]">info</span>
+            @_exportWarningMessage
+        </div>
+    }
+    @if (_modelInvalidOrInactive)
+    {
+        <div class="fixed top-20 left-1/2 -translate-x-1/2 z-50 px-4 py-3 bg-error-container text-error rounded-lg shadow-lg font-body-sm text-body-sm flex items-center gap-2" role="alert">
+            <span class="material-symbols-outlined text-[18px]">warning</span>
+            Dòng máy không tồn tại hoặc đã ngừng hoạt động. Đang hiển thị khung mặc định.
+        </div>
+    }
+
+    <!-- WORKSPACE TOP SUB-HEADER -->
+    <CustomizeHeader SelectedModel="_selectedModel"
+                     AvailableModels="_availableModels"
+                     OnSelectModel="HandleSelectModel"
+                     EditorReady="_editorReady"
+                     PreviewMode="_previewMode"
+                     ExportInProgress="_exportInProgress"
+                     OrderInProgress="_orderInProgress"
+                     OnRemoveSelected="HandleRemoveSelected"
+                     OnReset="HandleReset"
+                     OnTogglePreview="HandleTogglePreview"
+                     OnExport="HandleExport"
+                     OnOrder="HandleOrder" />
+
+    @if (_initFailed)
+    {
+        <div class="flex flex-col items-center justify-center py-32 gap-4" role="alert">
+            <span class="material-symbols-outlined text-[48px] text-error">error_outline</span>
+            <h2 class="font-headline-sm text-on-surface">Không thể khởi động trình chỉnh sửa</h2>
+            <p class="font-body-md text-on-surface-variant">Vui lòng tải lại trang.</p>
+            <a href="/customize" class="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-primary text-on-primary font-label-md text-label-md hover:bg-neutral-800 transition-colors">
+                <span class="material-symbols-outlined text-[18px]">refresh</span> Tải lại
+            </a>
+        </div>
+    }
+    else
+    {
+        <div class="studio-workspace grid grid-cols-1 lg:grid-cols-12 w-full bg-surface">
+
+            @if (!_previewMode)
+            {
+                <CustomizeToolPanel EditorReady="_editorReady"
+                                    Stickers="_stickers"
+                                    StickersLoading="_stickersLoading"
+                                    StickersError="_stickersError"
+                                    OnAddSticker="HandleAddSticker"
+                                    OnUploadSticker="HandleUploadSticker"
+                                    UploadInProgress="_uploadInProgress"
+                                    UploadErrorMessage="@_uploadErrorMessage"
+                                    UploadSuccess="_uploadSuccess"
+                                    OnAddText="HandleAddText"
+                                    OnSetBackground="HandleSetBackground"
+                                    OnClearBackground="HandleClearBackground"
+                                    OnChangeBackgroundColor="HandleChangeBackgroundColor" />
+            }
+
+            <CustomizeCanvas SelectedModel="_selectedModel"
+                             EditorReady="_editorReady"
+                             PreviewMode="_previewMode"
+                             @bind-Zoom="_zoom"
+                             OnCenter="HandleCenter"
+                             OnToggleGrid="HandleToggleGrid" />
+
+            @if (!_previewMode)
+            {
+                <CustomizePropertiesPanel EditorReady="_editorReady" />
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [SupplyParameterFromQuery]
+    public Guid? ModelId { get; set; }
+
+    [SupplyParameterFromQuery]
+    public Guid? ProductId { get; set; }
+
+    private PhoneModelDto? _selectedModel;
+    private IReadOnlyList<PhoneModelDto>? _availableModels;
+    private bool _modelInvalidOrInactive = false;
+
+    private int _zoom = 100;
+
+    // -- Editor state --
+    private bool _editorReady = false;
+    private bool _disposed = false;
+    private int _uploadGeneration;
+    private bool _initFailed = false;
+    private bool _previewMode = false;
+    private bool _exportInProgress = false;
+    private bool _orderInProgress = false;
+    private string? _exportErrorMessage = null;
+    private string? _exportWarningMessage = null;
+
+    // -- Upload state --
+    private bool _uploadInProgress = false;
+    private string? _uploadErrorMessage = null;
+    private bool _uploadSuccess = false;
+
+    // -- Stickers state --
+    private IReadOnlyList<StickerDto>? _stickers;
+    private bool _stickersLoading = true;
+    private bool _stickersError = false;
+
+    private string? _draftRestoredMessage = null;
+    private record EditorInitResult(bool Success, bool DraftRestored = false, int ElementCount = 0, string? LastModelSlug = null);
+
+    // -- Lifecycle --
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _stickers = await StickerService.GetActiveStickersAsync();
+        }
+        catch
+        {
+            _stickersError = true;
+        }
+        finally
+        {
+            _stickersLoading = false;
+        }
+
+        try
+        {
+            _availableModels = await CatalogService.GetPhoneModelsAsync(activeOnly: true);
+        }
+        catch { }
+
+        if (ModelId.HasValue)
+        {
+            try
+            {
+                var model = _availableModels?.FirstOrDefault(m => m.Id == ModelId.Value)
+                         ?? await CatalogService.GetPhoneModelAsync(ModelId.Value);
+                if (model != null && model.IsActive)
+                {
+                    _selectedModel = model;
+                    _appliedModelId = model.Id;
+                }
+                else
+                {
+                    _modelInvalidOrInactive = true;
+                    ModelId = null;
+                }
+            }
+            catch
+            {
+                _modelInvalidOrInactive = true;
+                ModelId = null;
+            }
+        }
+
+        // Tự động nạp dòng máy chuẩn nếu chưa chọn dòng máy cụ thể
+        if (_selectedModel == null && _availableModels != null && _availableModels.Count > 0)
+        {
+            _selectedModel = _availableModels.FirstOrDefault(m => m.Slug == "iphone-15-pro")
+                          ?? _availableModels.FirstOrDefault(m => m.CameraCutoutWidth > 0)
+                          ?? _availableModels.FirstOrDefault();
+            if (_selectedModel != null)
+            {
+                _appliedModelId = _selectedModel.Id;
+            }
+        }
+    }
+
+    private Guid? _appliedModelId;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (ModelId.HasValue && ModelId != _appliedModelId)
+        {
+            _appliedModelId = ModelId;
+            try
+            {
+                var model = _availableModels?.FirstOrDefault(m => m.Id == ModelId.Value)
+                         ?? await CatalogService.GetPhoneModelAsync(ModelId.Value);
+                if (model != null && model.IsActive)
+                {
+                    _selectedModel = model;
+                    _modelInvalidOrInactive = false;
+                    if (_editorReady)
+                    {
+                        await JS.InvokeVoidAsync("CaseShopEditor.setPhoneModel", _selectedModel);
+                    }
+                    StateHasChanged();
+                }
+                else
+                {
+                    _modelInvalidOrInactive = true;
+                    StateHasChanged();
+                }
+            }
+            catch
+            {
+                _modelInvalidOrInactive = true;
+                StateHasChanged();
+            }
+        }
+    }
+
+    private async Task HandleSelectModel(PhoneModelDto model)
+    {
+        if (model == null || model.Id == _selectedModel?.Id) return;
+
+        _selectedModel = model;
+        _appliedModelId = model.Id;
+        ModelId = model.Id;
+        _modelInvalidOrInactive = false;
+
+        if (_editorReady)
+        {
+            await JS.InvokeVoidAsync("CaseShopEditor.setPhoneModel", _selectedModel);
+        }
+
+        NavigationManager.NavigateTo($"/customize?modelId={model.Id}", replace: true);
+        StateHasChanged();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || _disposed) return;
+        try
+        {
+            var initResult = await JS.InvokeAsync<EditorInitResult>("CaseShopEditor.init", "editor-canvas", _selectedModel);
+            if (_disposed) return;
+            _editorReady = initResult?.Success == true;
+            _initFailed = !_editorReady;
+            if (_editorReady && initResult?.DraftRestored == true && (initResult.ElementCount > 0 || _draftRestoredMessage == null))
+            {
+                _draftRestoredMessage = $"Đã tự động tải lại bản thiết kế tạm thời ({initResult.ElementCount} chi tiết).";
+            }
+        }
+        catch
+        {
+            _initFailed = true;
+        }
+        if (!_disposed) StateHasChanged();
+    }
+
+    // -- Handler: Reset --
+
+    private async Task HandleReset()
+    {
+        if (!_editorReady) return;
+        _uploadGeneration++;
+        _uploadErrorMessage = null;
+        _uploadSuccess = false;
+        _draftRestoredMessage = null;
+        _previewMode = false;
+        try { await JS.InvokeVoidAsync("CaseShopEditor.reset"); } catch { }
+    }
+
+    // -- Handler: Preview --
+
+    private async Task HandleTogglePreview()
+    {
+        if (!_editorReady) return;
+        _previewMode = !_previewMode;
+        if (_previewMode) _uploadGeneration++;
+        try { await JS.InvokeVoidAsync("CaseShopEditor.setPreviewMode", _previewMode); } catch { }
+    }
+
+    // -- Handler: Export --
+
+    private async Task HandleExport()
+    {
+        if (!_editorReady || _exportInProgress) return;
+        _exportInProgress = true;
+        _exportErrorMessage = null;
+        _exportWarningMessage = null;
+        StateHasChanged();
+        try
+        {
+            var result = await JS.InvokeAsync<ExportResult>("CaseShopEditor.exportDesign");
+            _exportWarningMessage = result?.Warning;
+            if (result is null || !result.Success)
+            {
+                _exportErrorMessage = result?.Error ?? "Xuất ảnh thất bại. Vui lòng thử lại.";
+            }
+        }
+        catch
+        {
+            _exportErrorMessage = "Xuất ảnh thất bại. Vui lòng thử lại.";
+        }
+        finally
+        {
+            _exportInProgress = false;
+        }
+    }
+
+    private record ExportResult(bool Success, string? Error = null, string? Warning = null);
+
+    // -- Handler: Direct Order --
+
+    private async Task HandleOrder()
+    {
+        if (!_editorReady || _orderInProgress || _exportInProgress) return;
+        _orderInProgress = true;
+        _exportErrorMessage = null;
+        _exportWarningMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            var snapshot = await JS.InvokeAsync<DesignSnapshotResult>("CaseShopEditor.getDesignSnapshot");
+            if (snapshot is null || !snapshot.Success || string.IsNullOrEmpty(snapshot.PreviewImageUrl))
+            {
+                _exportErrorMessage = snapshot?.Error ?? "Không thể tạo bản xem trước thiết kế để đặt hàng.";
+                return;
+            }
+
+            ProductDto? targetProduct = null;
+            if (ProductId.HasValue)
+            {
+                targetProduct = await ProductService.GetProductByIdAsync(ProductId.Value);
+            }
+
+            if (targetProduct is null || !targetProduct.IsActive)
+            {
+                var activeProducts = await ProductService.GetActiveProductsAsync();
+                targetProduct = activeProducts.FirstOrDefault(p => p.Name.Contains("Custom", StringComparison.OrdinalIgnoreCase))
+                             ?? activeProducts.FirstOrDefault();
+            }
+
+            if (targetProduct is null)
+            {
+                _exportErrorMessage = "Không tìm thấy cấu hình sản phẩm phù hợp trong hệ thống để đặt hàng.";
+                return;
+            }
+
+            var brandName = _selectedModel?.PhoneBrandName;
+            var rawModelName = _selectedModel?.Name ?? "Ốp lưng tiêu chuẩn";
+            var modelName = !string.IsNullOrWhiteSpace(brandName) && !rawModelName.StartsWith(brandName, StringComparison.OrdinalIgnoreCase)
+                ? $"{brandName} {rawModelName}"
+                : rawModelName;
+            var cartItem = new ClientCartItem
+            {
+                Key = Guid.NewGuid().ToString("N"),
+                ProductId = targetProduct.Id,
+                ProductName = $"{targetProduct.Name} ({modelName})",
+                ImageUrl = snapshot.PreviewImageUrl,
+                UnitPrice = targetProduct.Price > 0 ? targetProduct.Price : 250000,
+                Quantity = 1,
+                Variant = modelName,
+                CustomDesign = new CustomDesignInputDto
+                {
+                    PreviewImageUrl = snapshot.PreviewImageUrl,
+                    OriginalImageUrl = snapshot.PrintImageUrl,
+                    DesignData = snapshot.DesignData ?? "{}"
+                }
+            };
+
+            await CartService.AddAsync(cartItem);
+            try { await JS.InvokeVoidAsync("CaseShopEditor.clearDraft", _selectedModel?.Slug); } catch { }
+            NavigationManager.NavigateTo("/cart");
+        }
+        catch (Exception ex)
+        {
+            _exportErrorMessage = $"Lỗi khi chuẩn bị đơn hàng: {ex.Message}";
+        }
+        finally
+        {
+            _orderInProgress = false;
+            StateHasChanged();
+        }
+    }
+
+    private record DesignSnapshotResult(
+        bool Success,
+        string? PreviewImageUrl = null,
+        string? PrintImageUrl = null,
+        string? DesignData = null,
+        string? Error = null
+    );
+
+    // -- Handlers: Canvas Viewport Commands --
+
+    private async Task HandleCenter()
+    {
+        if (!_editorReady || _previewMode) return;
+        try { await JS.InvokeVoidAsync("CaseShopEditor.command", "center", null, null); } catch { }
+    }
+
+    private async Task HandleToggleGrid()
+    {
+        if (!_editorReady) return;
+        try { await JS.InvokeVoidAsync("CaseShopEditor.command", "grid", null, null); } catch { }
+    }
+
+    private async Task HandleChangeBackgroundColor(string color)
+    {
+        if (!_editorReady) return;
+        try { await JS.InvokeVoidAsync("CaseShopEditor.command", "backgroundColor", color, null); } catch { }
+    }
+
+    // -- Handler: Remove Selected --
+
+    private async Task HandleRemoveSelected()
+    {
+        if (!_editorReady || _previewMode) return;
+        try { await JS.InvokeVoidAsync("CaseShopEditor.removeSelected"); } catch { }
+    }
+
+    // -- Handler: Add Sticker --
+
+    private async Task HandleAddSticker(StickerDto sticker)
+    {
+        if (!_editorReady) return;
+        try
+        {
+            await JS.InvokeVoidAsync("CaseShopEditor.addSticker",
+                sticker.Id.ToString(),
+                sticker.ImageUrl ?? string.Empty,
+                sticker.Name);
+        }
+        catch { }
+    }
+
+    // -- Handler: Upload Sticker --
+
+    private async Task HandleUploadSticker(IBrowserFile file)
+    {
+        if (!_editorReady || _disposed || _previewMode || _uploadInProgress) return;
+
+        var generation = ++_uploadGeneration;
+        _uploadInProgress = true;
+        _uploadErrorMessage = null;
+        _uploadSuccess = false;
+
+        try
+        {
+            var jsGeneration = await JS.InvokeAsync<int?>("CaseShopEditor.beginUpload");
+            if (jsGeneration is null || !IsUploadCurrent(generation)) return;
+
+            if (!StorageService.IsValidImageFile(file.Name, file.ContentType, file.Size))
+            {
+                _uploadErrorMessage = "File không hợp lệ. Chỉ chấp nhận JPG, PNG, WEBP và tối đa 5MB.";
+                return;
+            }
+
+            const long maxStreamSize = 5 * 1024 * 1024;
+            await using var stream = file.OpenReadStream(maxStreamSize);
+
+            var (fileUrl, _) = await StorageService.UploadFileAsync(
+                stream,
+                file.Name,
+                file.ContentType,
+                "caseshop/custom-stickers");
+
+            if (!IsUploadCurrent(generation)) return;
+
+            var added = await JS.InvokeAsync<bool>("CaseShopEditor.addUploadedSticker",
+                fileUrl, "Uploaded sticker", jsGeneration.Value);
+            if (!added || !IsUploadCurrent(generation)) return;
+
+            _uploadSuccess = true;
+        }
+        catch (System.IO.InvalidDataException)
+        {
+            if (IsUploadCurrent(generation))
+                _uploadErrorMessage = "File không hợp lệ. Chỉ chấp nhận ảnh JPG, PNG, WEBP và tối đa 5MB.";
+        }
+        catch (Exception)
+        {
+            if (IsUploadCurrent(generation))
+                _uploadErrorMessage = "Tải lên thất bại. Vui lòng thử lại.";
+        }
+        finally
+        {
+            _uploadInProgress = false;
+        }
+    }
+
+    private bool IsUploadCurrent(int generation) =>
+        !_disposed && _editorReady && !_previewMode && generation == _uploadGeneration;
+
+    // -- Handler: Text --
+
+    private async Task HandleAddText(string text)
+    {
+        if (!_editorReady) return;
+        try
+        {
+            await JS.InvokeAsync<bool>("CaseShopEditor.addText", text);
+        }
+        catch { }
+    }
+
+    // -- Handlers: Background --
+
+    private async Task HandleSetBackground(string url)
+    {
+        if (!_editorReady) return;
+        try { await JS.InvokeVoidAsync("CaseShopEditor.setBackground", url); } catch { }
+    }
+
+    private async Task HandleClearBackground()
+    {
+        if (!_editorReady) return;
+        try { await JS.InvokeVoidAsync("CaseShopEditor.clearBackground"); } catch { }
+    }
+
+    // -- Disposal --
+
+    public async ValueTask DisposeAsync()
+    {
+        _disposed = true;
+        _editorReady = false;
+        _uploadGeneration++;
+        try { await JS.InvokeVoidAsync("CaseShopEditor.dispose"); } catch { }
+    }
+}

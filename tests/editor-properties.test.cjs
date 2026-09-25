@@ -1,0 +1,58 @@
+const fs = require('node:fs');
+const vm = require('node:vm');
+const assert = require('node:assert/strict');
+const handlers = new Map();
+const ctx = new Proxy({}, { get: (o, k) => o[k] || (() => {}) });
+const canvas = { parentElement: {}, getContext: () => ctx,
+    getBoundingClientRect: () => ({ left: 0, top: 0, width: 600, height: 1000 }),
+    addEventListener: (k, v) => handlers.set(k, v), removeEventListener: k => handlers.delete(k),
+    setPointerCapture() {}, releasePointerCapture() {} };
+const sandbox = { window: {}, document: { getElementById: () => canvas },
+    ResizeObserver: class { observe() {} disconnect() {} }, Image: class {}, console };
+vm.runInNewContext(fs.readFileSync('CaseShop.Web/wwwroot/js/editor.js', 'utf8'), sandbox);
+const editor = sandbox.window.CaseShopEditor;
+editor.init('canvas');
+assert.equal(editor.getState().canUndo, false);
+editor.addText('Initial');
+const id = editor.getState().selectedId;
+editor.command('text', 'Edited');
+editor.command('opacity', '35');
+editor.command('undo');
+assert.equal(editor.getState().elements[0].opacity, 100);
+editor.command('undo');
+assert.equal(editor.getState().elements[0].name, 'Initial');
+editor.command('redo');
+assert.equal(editor.getState().elements[0].name, 'Edited');
+editor.command('select', null, id);
+editor.command('lock');
+editor.command('text', 'Should not change');
+editor.removeSelected();
+assert.equal(editor.getState().elements[0].name, 'Edited');
+assert.equal(editor.getState().elements.length, 1);
+editor.command('lock');
+editor.command('duplicate');
+assert.equal(editor.getState().elements.length, 2);
+const copyId = editor.getState().selectedId;
+editor.command('backward');
+assert.equal(editor.getState().elements[1].id, copyId);
+editor.command('visibility');
+assert.equal(editor.getState().elements[1].hidden, true);
+editor.command('width', '100000');
+const copy = editor.getState().elements[1];
+assert(copy.width <= 532 && copy.x >= 34 && copy.y >= 94);
+editor.command('opacity', 'NaN');
+assert.equal(editor.getState().elements[1].opacity, 100);
+editor.setPreviewMode(true);
+editor.command('delete');
+assert.equal(editor.getState().elements.length, 2);
+editor.setPreviewMode(false);
+editor.command('undo');
+editor.addText('New branch');
+assert.equal(editor.getState().canRedo, false);
+editor.reset();
+assert.equal(editor.getState().elements.length, 0);
+editor.command('undo');
+assert.equal(editor.getState().elements.length, 3);
+editor.dispose(); editor.init('canvas');
+assert.equal(editor.getState().canUndo, false);
+console.log('PASS: properties, history branches, reset undo, lock, visibility, ordering, duplicate, preview guards and lifecycle.');

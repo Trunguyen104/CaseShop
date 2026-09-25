@@ -1,0 +1,45 @@
+@using CaseShop.Web.Entities
+@namespace CaseShop.Web.Components.Pages.Admin.Orders.Components
+
+<div class="bg-surface-container-lowest border border-outline-variant/60 rounded-2xl shadow-sm p-5 sm:p-6 space-y-3.5">
+    <div class="flex items-center gap-2 pb-3 border-b border-outline-variant/50">
+        <span class="material-symbols-outlined text-primary text-[20px]">payments</span>
+        <h3 class="font-headline-sm text-base font-bold text-on-surface">Thanh toán &amp; Vận chuyển</h3>
+    </div>
+
+    <div class="space-y-2.5 text-xs sm:text-sm">
+        <div class="flex items-center justify-between">
+            <span class="text-on-surface-variant">Phương thức:</span>
+            <span class="font-semibold text-on-surface flex items-center gap-1">
+                <span class="material-symbols-outlined text-[16px] text-emerald-600">credit_card</span>
+                <span>@OrderAdminHelpers.GetPaymentMethodDisplayName(PaymentMethod)</span>
+            </span>
+        </div>
+
+        <div class="flex items-center justify-between">
+            <span class="text-on-surface-variant">Thời gian đặt:</span>
+            <span class="font-mono text-on-surface">@CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")</span>
+        </div>
+
+        <div class="flex items-center justify-between">
+            <span class="text-on-surface-variant">Vận chuyển:</span>
+            <span class="font-semibold text-emerald-600">Miễn phí giao hàng</span>
+        </div>
+
+        <div class="pt-3 border-t border-outline-variant/40 flex items-center justify-between">
+            <span class="font-semibold text-on-surface text-sm">Tổng thu:</span>
+            <span class="font-headline-md text-lg font-bold text-primary">@TotalAmount.ToString("N0")₫</span>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public PaymentMethodType PaymentMethod { get; set; }
+
+    [Parameter]
+    public DateTime CreatedAt { get; set; }
+
+    [Parameter]
+    public decimal TotalAmount { get; set; }
+}

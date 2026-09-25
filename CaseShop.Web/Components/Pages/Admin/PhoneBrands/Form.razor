@@ -1,0 +1,68 @@
+@page "/admin/phone-brands/create"
+@page "/admin/phone-brands/edit/{Id:guid}"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Admin")]
+@inject IPhoneCatalogService CatalogService
+@inject NavigationManager Navigation
+
+<PageTitle>@(IsEdit ? "Sửa" : "Thêm") thương hiệu - CaseShop</PageTitle>
+<AdminShell ActiveSection="phone-brands">
+    <AdminPageHeader Title="@(IsEdit ? "Chỉnh sửa thương hiệu" : "Thêm thương hiệu")" Subtitle="Dữ liệu thiết bị" />
+
+    @if (_loading)
+    {
+        <div class="alert alert-info">Đang tải dữ liệu...</div>
+    }
+    else if (_notFound)
+    {
+        <div class="alert alert-warning">
+            <p class="mb-0">Không tìm thấy thương hiệu.</p>
+            <a class="btn btn-secondary mt-3" href="/admin/phone-brands">Về danh sách</a>
+        </div>
+    }
+    else
+    {
+        <div class="max-w-2xl mx-auto card shadow-sm border-0">
+            <div class="card-body p-4">
+                @if (_error is not null)
+                {
+                    <div class="alert alert-danger mb-4" role="alert">@_error</div>
+                }
+                <EditForm Model="_model" OnValidSubmit="SubmitAsync" FormName="phoneBrandForm">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary class="mb-4 text-danger" />
+
+                    <div class="mb-3">
+                        <label class="form-label font-semibold" for="brand-name">Tên thương hiệu <span class="text-danger">*</span></label>
+                        <InputText id="brand-name" class="form-control" @bind-Value="_model.Name" />
+                        <ValidationMessage For="@(() => _model.Name)" class="text-danger" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label font-semibold" for="brand-slug">Slug</label>
+                        <InputText id="brand-slug" class="form-control" @bind-Value="_model.Slug" />
+                        <small class="text-muted">Slug sẽ được chuẩn hóa thành chữ thường.</small>
+                        <ValidationMessage For="@(() => _model.Slug)" class="text-danger" />
+                    </div>
+
+                    <div class="form-check mb-4">
+                        <InputCheckbox id="brand-active" class="form-check-input" @bind-Value="_model.IsActive" />
+                        <label class="form-check-label" for="brand-active">Đang hoạt động</label>
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2">
+                        <a class="btn btn-secondary" href="/admin/phone-brands">Hủy</a>
+                        <button class="btn btn-primary" type="submit" disabled="@_submitting">@(_submitting ? "Đang lưu..." : "Lưu thương hiệu")</button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    }
+</AdminShell>
+
+@code {
+    [Parameter] public Guid? Id { get; set; }
+    private PhoneBrandCreateUpdateDto _model = new(); private bool _loading, _notFound, _submitting; private string? _error; private bool IsEdit => Id.HasValue;
+    protected override async Task OnParametersSetAsync(){_loading=true;try{if(IsEdit){var current=await CatalogService.GetPhoneBrandAsync(Id!.Value);if(current is null){_notFound=true;return;}_model=new(){Name=current.Name,Slug=current.Slug,IsActive=current.IsActive};}}catch{_error="Không thể tải dữ liệu thương hiệu.";}finally{_loading=false;}}
+    private async Task SubmitAsync(){if(_submitting)return;_submitting=true;_error=null;try{if(IsEdit)await CatalogService.UpdatePhoneBrandAsync(Id!.Value,_model);else await CatalogService.CreatePhoneBrandAsync(_model);Navigation.NavigateTo("/admin/phone-brands");}catch(InvalidOperationException ex){_error=ex.Message;}catch{_error="Không thể lưu thương hiệu. Vui lòng thử lại.";}finally{_submitting=false;}}
+}

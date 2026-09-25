@@ -1,0 +1,99 @@
+@inject IJSRuntime JS
+@implements IDisposable
+
+<section class="space-y-4" aria-label="Lớp và thuộc tính thiết kế">
+    <div class="flex flex-wrap gap-2">
+        <button class="studio-action" disabled="@(!_state.CanUndo)" @onclick='() => Run("undo")'>↶ Hoàn tác</button>
+        <button class="studio-action" disabled="@(!_state.CanRedo)" @onclick='() => Run("redo")'>↷ Làm lại</button>
+    </div>
+    <p class="text-label-sm text-on-surface-variant">@_state.Elements.Count lớp • Chọn một lớp để chỉnh sửa</p>
+    @if (_state.Elements.Count == 0)
+    {
+        <div class="rounded-xl bg-surface-container-low p-4 text-body-sm text-on-surface-variant">Bắt đầu với một sticker, ảnh hoặc dòng chữ từ bảng công cụ.</div>
+    }
+    @foreach (var layer in _state.Elements)
+    {
+        <div @key="layer.Id" class="rounded-lg p-2 @(_state.SelectedId == layer.Id ? "bg-surface-container ring-1 ring-primary" : "bg-surface-container-low")">
+            <button class="w-full truncate text-left text-label-md font-semibold" @onclick='() => Run("select", null, layer.Id)'>@(layer.Type == "text" ? "Chữ: " : "Ảnh: ")@layer.Name</button>
+            <div class="mt-2 flex gap-2">
+                <button class="studio-action" disabled="@layer.Locked" aria-label="Ẩn hoặc hiện lớp @layer.Name" @onclick='() => Run("visibility", null, layer.Id)'>@(layer.Hidden ? "Hiện" : "Ẩn")</button>
+                <button class="studio-action" aria-label="Khóa hoặc mở lớp @layer.Name" @onclick='() => Run("lock", null, layer.Id)'>@(layer.Locked ? "Mở khóa" : "Khóa")</button>
+                <button class="studio-action" disabled="@layer.Locked" aria-label="Xóa lớp @layer.Name" @onclick='() => Run("delete", null, layer.Id)'>Xóa</button>
+            </div>
+        </div>
+    }
+    @if (Selected is { } selected)
+    {
+        <fieldset disabled="@selected.Locked" class="space-y-4 border-t border-outline-variant pt-4">
+            <legend class="text-label-md font-semibold">Thuộc tính lớp</legend>
+            @if (selected.Locked) { <p class="text-body-sm">Mở khóa lớp để chỉnh sửa.</p> }
+            <div class="flex flex-wrap gap-2">
+                <button class="studio-action" @onclick='() => Run("duplicate")'>Nhân bản</button>
+                <button class="studio-action" @onclick='() => Run("forward")'>Đưa lên</button>
+                <button class="studio-action" @onclick='() => Run("backward")'>Đưa xuống</button>
+                <button class="studio-action" @onclick='() => Run("center")'>Căn giữa</button>
+            </div>
+            <label class="studio-label">Chiều rộng: @selected.Width px
+                <input type="range" min="20" max="532" value="@selected.Width" @onchange='e => Run("width", e.Value)' />
+            </label>
+            <label class="studio-label">Độ đậm: @selected.Opacity%
+                <input type="range" min="0" max="100" value="@selected.Opacity" @onchange='e => Run("opacity", e.Value)' />
+            </label>
+            <label class="studio-label">Góc xoay: @selected.Rotation°
+                <input type="range" min="-180" max="180" value="@selected.Rotation" @onchange='e => Run("rotation", e.Value)' />
+            </label>
+            <div class="grid grid-cols-2 gap-2">
+                <label class="studio-label">Vị trí X<input type="number" value="@selected.X" @onchange='e => Run("x", e.Value)' /></label>
+                <label class="studio-label">Vị trí Y<input type="number" value="@selected.Y" @onchange='e => Run("y", e.Value)' /></label>
+            </div>
+            @if (selected.Type == "text")
+            {
+                <label class="studio-label">Nội dung<input type="text" maxlength="100" value="@selected.Name" @onchange='e => Run("text", e.Value)' /></label>
+                <label class="studio-label">Phông chữ<select value="@selected.FontFamily" @onchange='e => Run("fontFamily", e.Value)'><option value="Arial, sans-serif">Arial</option><option value="Georgia, serif">Georgia</option><option value="Courier New, monospace">Courier New</option></select></label>
+                <label class="studio-label">Cỡ chữ tối đa<input type="number" min="8" max="180" value="@selected.FontSize" @onchange='e => Run("fontSize", e.Value)' /></label>
+                <p class="text-body-sm text-on-surface-variant">Chữ tự co vừa khung. Tăng chiều rộng để hiển thị chữ lớn hơn.</p>
+                <label class="studio-label">Màu chữ<input type="color" value="@selected.Color" @onchange='e => Run("color", e.Value)' /></label>
+                <button class="studio-action" aria-pressed="@selected.Bold" @onclick='() => Run("bold")'>@(selected.Bold ? "Bỏ in đậm" : "In đậm")</button>
+            }
+        </fieldset>
+    }
+</section>
+
+@code {
+    private EditorState _state = new();
+    private DotNetObjectReference<EditorProperties>? _reference;
+    private Layer? Selected => _state.Elements.FirstOrDefault(x => x.Id == _state.SelectedId);
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        _reference = DotNetObjectReference.Create(this);
+        await JS.InvokeVoidAsync("CaseShopEditor.observe", _reference);
+    }
+    [JSInvokable] public Task EditorChanged(EditorState state) => InvokeAsync(() => { _state = state; StateHasChanged(); });
+    private async Task Run(string action, object? value = null, string? id = null) => await JS.InvokeVoidAsync("CaseShopEditor.command", action, value, id);
+    public void Dispose() => _reference?.Dispose();
+    public sealed class EditorState
+    {
+        public List<Layer> Elements { get; set; } = [];
+        public string? SelectedId { get; set; }
+        public bool CanUndo { get; set; }
+        public bool CanRedo { get; set; }
+    }
+    public sealed class Layer
+    {
+        public string Id { get; set; } = "";
+        public string Type { get; set; } = "";
+        public string Name { get; set; } = "";
+        public int X { get; set; }
+        public int Y { get; set; }
+        public int Width { get; set; }
+        public int Rotation { get; set; }
+        public int Opacity { get; set; }
+        public bool Hidden { get; set; }
+        public bool Locked { get; set; }
+        public string Color { get; set; } = "#111111";
+        public string FontFamily { get; set; } = "Arial, sans-serif";
+        public int FontSize { get; set; }
+        public bool Bold { get; set; }
+    }
+}

@@ -1,0 +1,21 @@
+<Router AppAssembly="typeof(Program).Assembly" NotFoundPage="typeof(Pages.NotFound)">
+    <Found Context="routeData">
+        <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)">
+            <NotAuthorized>
+                @if (context.User.Identity?.IsAuthenticated != true)
+                {
+                    <RedirectToLogin />
+                }
+                else
+                {
+                    <div class="container py-5 text-center">
+                        <h3 class="text-danger fw-bold">Truy cập bị từ chối</h3>
+                        <p class="text-muted">Tài khoản của bạn không có quyền truy cập khu vực này.</p>
+                        <a href="/" class="btn btn-primary mt-2">Quay lại trang chủ</a>
+                    </div>
+                }
+            </NotAuthorized>
+        </AuthorizeRouteView>
+        <FocusOnNavigate RouteData="routeData" Selector="h1" />
+    </Found>
+</Router>
