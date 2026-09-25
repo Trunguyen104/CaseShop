@@ -1,0 +1,49 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: caseshop-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-CaseShopDb}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be configured in .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-CaseShopDb}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - caseshop-network
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: caseshop-web
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "80:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__DefaultConnection=Host=postgres;Database=${POSTGRES_DB:-CaseShopDb};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD}
+      - Cloudinary__CloudName=${CLOUDINARY_CLOUD_NAME:?CLOUDINARY_CLOUD_NAME must be configured in .env}
+      - Cloudinary__ApiKey=${CLOUDINARY_API_KEY:?CLOUDINARY_API_KEY must be configured in .env}
+      - Cloudinary__ApiSecret=${CLOUDINARY_API_SECRET:?CLOUDINARY_API_SECRET must be configured in .env}
+      - AdminCredentials__Username=${ADMIN_USERNAME:-admin}
+      - AdminCredentials__Password=${ADMIN_PASSWORD:?ADMIN_PASSWORD must be configured in .env}
+    env_file:
+      - .env
+    networks:
+      - caseshop-network
+
+volumes:
+  postgres_data:
+
+networks:
+  caseshop-network:
+    driver: bridge
