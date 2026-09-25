@@ -83,11 +83,30 @@ builder.Services.AddScoped<IPhoneCatalogService, PhoneCatalogService>();
 
 var app = builder.Build();
 
-// Seed default admin account if not present
+// Apply database migrations and seed default data
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
     var logger = services.GetRequiredService<ILogger<Program>>();
+
+    // 1. Automatically apply any pending EF Core migrations to ensure tables exist
+    try
+    {
+        var dbContext = services.GetRequiredService<AppDbContext>();
+        logger.LogInformation("Applying EF Core database migrations...");
+        await dbContext.Database.MigrateAsync();
+        logger.LogInformation("Database migrations applied successfully.");
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Failed to apply database migrations at startup.");
+        if (!app.Environment.IsDevelopment())
+        {
+            throw;
+        }
+    }
+
+    // 2. Seed default admin account if not present
     try
     {
         var authService = services.GetRequiredService<IAuthService>();
