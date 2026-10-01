@@ -12,6 +12,7 @@ COPY CaseShop.Web/package*.json ./
 RUN npm install
 
 COPY CaseShop.Web/tailwind.config.js ./
+COPY CaseShop.Web/scripts ./scripts
 COPY CaseShop.Web/wwwroot/app.css ./wwwroot/
 COPY CaseShop.Web/Components ./Components
 COPY CaseShop.Web/wwwroot ./wwwroot
@@ -28,8 +29,9 @@ COPY ["CaseShop.Web/CaseShop.Web.csproj", "CaseShop.Web/"]
 RUN dotnet restore "CaseShop.Web/CaseShop.Web.csproj"
 
 COPY . .
-# Copy compiled CSS from css-builder to avoid needing Node in .NET SDK container
+# Copy generated frontend assets from css-builder to avoid needing Node in the .NET SDK container.
 COPY --from=css-builder /app/wwwroot/app.min.css CaseShop.Web/wwwroot/app.min.css
+COPY --from=css-builder /app/wwwroot/vendor CaseShop.Web/wwwroot/vendor
 
 WORKDIR "/src/CaseShop.Web"
 RUN dotnet publish "CaseShop.Web.csproj" -c Release -o /app/publish /p:UseAppHost=false /p:SkipTailwindBuild=true
