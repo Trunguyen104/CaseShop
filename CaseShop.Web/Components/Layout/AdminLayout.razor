@@ -1,0 +1,28 @@
+@inherits LayoutComponentBase
+
+<main class="min-h-screen w-full bg-surface">
+    <ErrorBoundary>
+        <ChildContent>
+            @Body
+        </ChildContent>
+        <ErrorContent>
+            <section class="flex min-h-screen items-center justify-center px-margin-mobile py-10 lg:px-margin">
+                <div class="w-full max-w-md rounded-2xl border border-outline-variant bg-surface-container-lowest p-6 text-center shadow-lg">
+                    <span class="material-symbols-outlined text-4xl text-error" aria-hidden="true">error</span>
+                    <h1 class="mt-3 font-headline-md text-headline-md font-bold text-on-surface">Không thể tải trang quản trị</h1>
+                    <p class="mt-2 font-body-md text-body-md text-on-surface-variant">Đã có lỗi xảy ra. Vui lòng tải lại trang để tiếp tục.</p>
+                    <a href="" class="mt-6 inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-primary px-5 font-label-md text-label-md font-semibold text-on-primary transition hover:bg-neutral-800 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2">
+                        <span class="material-symbols-outlined text-[18px]" aria-hidden="true">refresh</span>
+                        Tải lại trang
+                    </a>
+                </div>
+            </section>
+        </ErrorContent>
+    </ErrorBoundary>
+</main>
+
+<div id="blazor-error-ui">
+    Đã xảy ra lỗi không mong muốn.
+    <a href="" class="reload">Tải lại</a>
+    <a class="dismiss">🗙</a>
+</div>

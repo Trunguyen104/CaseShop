@@ -161,6 +161,13 @@
                                                     <div class="font-bold text-on-surface text-sm sm:text-base leading-snug">
                                                         @product.Name
                                                     </div>
+                                                    @if (IsCustomProduct(product))
+                                                    {
+                                                        <span class="inline-flex items-center gap-1 rounded-full bg-secondary-container px-2 py-0.5 font-label-sm text-[10px] font-semibold text-on-secondary-container">
+                                                            <span class="material-symbols-outlined text-[12px]">design_services</span>
+                                                            Sản phẩm tùy chỉnh
+                                                        </span>
+                                                    }
                                                     
                                                     <!-- Product ID Badge with Copy -->
                                                     <div class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-surface-container-high/60 border border-outline-variant/60 font-mono text-xs text-on-surface">
@@ -283,9 +290,14 @@
                 query = query.Where(p => !p.IsActive);
             }
 
-            return query;
+            return query
+                .OrderByDescending(IsCustomProduct)
+                .ThenByDescending(p => p.CreatedAt);
         }
     }
+
+    private static bool IsCustomProduct(ProductDto product) =>
+        product.Name.Contains("Custom", StringComparison.OrdinalIgnoreCase);
 
     private async Task LoadProductsAsync()
     {

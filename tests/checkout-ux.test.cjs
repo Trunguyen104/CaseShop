@@ -76,3 +76,11 @@ test('COD success page reminds the customer to answer the confirmation call', ()
   assert.match(source, /@_order\.Phone/);
   assert.match(source, /xác nhận đơn hàng trước khi tiến hành sản xuất và giao hàng/);
 });
+
+test('admin product list pins the custom product first for price management', () => {
+  const source = read('CaseShop.Web/Components/Pages/Admin/Products/Index.razor');
+  assert.match(source, /OrderByDescending\(IsCustomProduct\)/);
+  assert.match(source, /ThenByDescending\(p => p\.CreatedAt\)/);
+  assert.match(source, /Name\.Contains\("Custom", StringComparison\.OrdinalIgnoreCase\)/);
+  assert.match(source, /Sản phẩm tùy chỉnh/);
+});
