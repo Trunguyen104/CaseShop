@@ -44,11 +44,22 @@ public class OrderRepository : IOrderRepository
     public async Task<Order?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         return await _context.Orders
+            .AsNoTracking()
             .Include(o => o.Items)
                 .ThenInclude(i => i.Product)
             .Include(o => o.Items)
                 .ThenInclude(i => i.CustomDesign)
             .FirstOrDefaultAsync(o => o.Id == id, cancellationToken);
+    }
+
+    public async Task<Order?> GetForUpdateByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return await FullOrderQuery().FirstOrDefaultAsync(o => o.Id == id, cancellationToken);
+    }
+
+    public async Task<Order?> GetForUpdateByPayOsOrderCodeAsync(long payOsOrderCode, CancellationToken cancellationToken = default)
+    {
+        return await FullOrderQuery().FirstOrDefaultAsync(o => o.PayOsOrderCode == payOsOrderCode, cancellationToken);
     }
 
     public async Task<Order?> GetByOrderCodeAsync(string orderCode, CancellationToken cancellationToken = default)
@@ -64,7 +75,12 @@ public class OrderRepository : IOrderRepository
 
     public async Task<bool> ExistsByOrderCodeAsync(string orderCode, CancellationToken cancellationToken = default)
     {
-        return await _context.Orders.AnyAsync(o => o.OrderCode == orderCode, cancellationToken);
+        return await _context.Orders.AsNoTracking().AnyAsync(o => o.OrderCode == orderCode, cancellationToken);
+    }
+
+    public async Task<bool> ExistsByPayOsOrderCodeAsync(long payOsOrderCode, CancellationToken cancellationToken = default)
+    {
+        return await _context.Orders.AsNoTracking().AnyAsync(o => o.PayOsOrderCode == payOsOrderCode, cancellationToken);
     }
 
     public async Task AddAsync(Order order, CancellationToken cancellationToken = default)
@@ -81,6 +97,12 @@ public class OrderRepository : IOrderRepository
         }
         await _context.SaveChangesAsync(cancellationToken);
     }
+
+    private IQueryable<Order> FullOrderQuery() => _context.Orders
+        .Include(o => o.Items)
+            .ThenInclude(i => i.Product)
+        .Include(o => o.Items)
+            .ThenInclude(i => i.CustomDesign);
 }
 
 

@@ -66,6 +66,19 @@
                     </div>
                 </div>
 
+                @if (_order.PaymentMethod == PaymentMethodType.CashOnDelivery)
+                {
+                    <div role="note" class="flex items-start gap-3 rounded-xl border border-primary/20 bg-secondary-container p-4 sm:p-5">
+                        <span class="material-symbols-outlined mt-0.5 shrink-0 text-primary">phone_in_talk</span>
+                        <div class="space-y-1">
+                            <p class="font-label-md text-label-md font-semibold text-on-surface">Vui lòng để ý điện thoại</p>
+                            <p class="font-body-sm text-body-sm leading-relaxed text-on-surface-variant">
+                                Nhân viên CaseShop sẽ liên hệ qua số <strong class="text-on-surface">@_order.Phone</strong> để xác nhận đơn hàng trước khi tiến hành sản xuất và giao hàng.
+                            </p>
+                        </div>
+                    </div>
+                }
+
                 <!-- Order Meta Block -->
                 <div class="w-full bg-surface-container-low rounded-lg p-5 sm:p-6 space-y-4">
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-outline-variant">
@@ -94,9 +107,12 @@
                             <div>
                                 <p class="font-label-sm text-label-sm text-on-surface-variant font-medium">Hình thức thanh toán</p>
                                 <p class="font-body-sm text-body-sm text-on-surface font-semibold">
-                                    @(_order.PaymentMethod == PaymentMethodType.CashOnDelivery
-                                        ? "COD (Nhận hàng thanh toán)"
-                                        : "Chuyển khoản ngân hàng")
+                                    @(_order.PaymentMethod switch
+                                    {
+                                        PaymentMethodType.CashOnDelivery => "COD (Nhận hàng thanh toán)",
+                                        PaymentMethodType.PayOSQr => "QR qua PayOS",
+                                        _ => "Chuyển khoản ngân hàng"
+                                    })
                                 </p>
                             </div>
                         </div>
@@ -180,9 +196,16 @@
                 <div class="w-full bg-surface-container-low rounded-lg p-4 flex items-start gap-3">
                     <span class="material-symbols-outlined text-primary text-[20px] mt-0.5 shrink-0">mail</span>
                     <div class="space-y-0.5">
-                        <p class="font-label-md text-label-md text-on-surface font-semibold">Xác nhận đơn qua email</p>
+                        <p class="font-label-md text-label-md text-on-surface font-semibold">@(_order.ConfirmationEmailStatus == EmailDeliveryStatus.Sent ? "Đã gửi xác nhận qua email" : "Thông báo đơn hàng")</p>
                         <p class="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
-                            Chúng tôi đã gửi email xác nhận đến <strong>@_order.Email</strong>. Vui lòng kiểm tra mục Thư đến hoặc Spam.
+                            @if (_order.ConfirmationEmailStatus == EmailDeliveryStatus.Sent)
+                            {
+                                <span>Email xác nhận đã được gửi đến <strong>@_order.Email</strong>. Vui lòng kiểm tra Thư đến hoặc Spam.</span>
+                            }
+                            else
+                            {
+                                <span>CaseShop đã ghi nhận email <strong>@_order.Email</strong> và sẽ gửi xác nhận sau khi thanh toán được xác nhận.</span>
+                            }
                         </p>
                     </div>
                 </div>
@@ -236,6 +259,7 @@
     private bool _isLoading = true;
     private bool _isCopied = false;
     private bool _showCopyToast = false;
+    private bool _copyRequested;
 
     protected override async Task OnInitializedAsync()
     {
@@ -257,26 +281,30 @@
         }
     }
 
-    private async Task CopyOrderCode()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (_order is null) return;
-
+        if (!_copyRequested || _order is null) return;
+        _copyRequested = false;
         try
         {
             await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", _order.OrderCode);
             _isCopied = true;
             _showCopyToast = true;
-            StateHasChanged();
-
-            await Task.Delay(2400);
-
-            _isCopied = false;
-            _showCopyToast = false;
-            StateHasChanged();
+            await InvokeAsync(StateHasChanged);
         }
-        catch
+        catch (JSException)
         {
-            // Clipboard API may be unavailable in some contexts — silently ignore
+            _isCopied = false;
         }
+    }
+
+    private async Task CopyOrderCode()
+    {
+        if (_order is null) return;
+        _copyRequested = true;
+        await InvokeAsync(StateHasChanged);
+        await Task.Delay(2400);
+        _isCopied = false;
+        _showCopyToast = false;
     }
 }

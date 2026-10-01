@@ -114,6 +114,19 @@ public static class EnvLoader
             case "ADMIN_PASSWORD":
                 Environment.SetEnvironmentVariable("AdminCredentials__Password", val);
                 break;
+
+            case "PAYOS_CLIENT_ID": Environment.SetEnvironmentVariable("PayOS__ClientId", val); break;
+            case "PAYOS_API_KEY": Environment.SetEnvironmentVariable("PayOS__ApiKey", val); break;
+            case "PAYOS_CHECKSUM_KEY": Environment.SetEnvironmentVariable("PayOS__ChecksumKey", val); break;
+            case "PAYOS_RETURN_URL": Environment.SetEnvironmentVariable("PayOS__ReturnUrl", val); break;
+            case "PAYOS_CANCEL_URL": Environment.SetEnvironmentVariable("PayOS__CancelUrl", val); break;
+            case "SMTP_HOST": Environment.SetEnvironmentVariable("Smtp__Host", val); break;
+            case "SMTP_PORT": Environment.SetEnvironmentVariable("Smtp__Port", val); break;
+            case "SMTP_USERNAME": Environment.SetEnvironmentVariable("Smtp__Username", val); break;
+            case "SMTP_PASSWORD": Environment.SetEnvironmentVariable("Smtp__Password", val); break;
+            case "SMTP_FROM_EMAIL": Environment.SetEnvironmentVariable("Smtp__FromEmail", val); break;
+            case "SMTP_FROM_NAME": Environment.SetEnvironmentVariable("Smtp__FromName", val); break;
+            case "SMTP_SUPPORT_EMAIL": Environment.SetEnvironmentVariable("Smtp__SupportEmail", val); break;
         }
     }
 }

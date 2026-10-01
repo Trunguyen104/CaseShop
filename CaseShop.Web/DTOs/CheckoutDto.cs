@@ -21,9 +21,30 @@ public class CheckoutDto
     [EmailAddress(ErrorMessage = "Email không đúng định dạng")]
     public string Email { get; set; } = string.Empty;
 
-    [Required(ErrorMessage = "Địa chỉ giao hàng là bắt buộc")]
-    [MaxLength(255, ErrorMessage = "Địa chỉ tối đa 255 ký tự")]
-    public string Address { get; set; } = string.Empty;
+    [Required(ErrorMessage = "Địa chỉ chi tiết là bắt buộc")]
+    [MaxLength(200, ErrorMessage = "Địa chỉ chi tiết tối đa 200 ký tự")]
+    public string AddressLine { get; set; } = string.Empty;
+
+    // Transitional alias for the existing checkout component.
+    public string Address
+    {
+        get => AddressLine;
+        set => AddressLine = value;
+    }
+
+    [Range(1, int.MaxValue, ErrorMessage = "Tỉnh/Thành phố là bắt buộc")]
+    public int ProvinceCode { get; set; }
+
+    [Required(ErrorMessage = "Tên Tỉnh/Thành phố là bắt buộc")]
+    [MaxLength(100)]
+    public string ProvinceName { get; set; } = string.Empty;
+
+    [Range(1, int.MaxValue, ErrorMessage = "Phường/Xã là bắt buộc")]
+    public int WardCode { get; set; }
+
+    [Required(ErrorMessage = "Tên Phường/Xã là bắt buộc")]
+    [MaxLength(100)]
+    public string WardName { get; set; } = string.Empty;
 
     [EnumDataType(typeof(PaymentMethodType), ErrorMessage = "Phuong thuc thanh toan khong hop le")]
     public PaymentMethodType PaymentMethod { get; set; } = PaymentMethodType.CashOnDelivery;

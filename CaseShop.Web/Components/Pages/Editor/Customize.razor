@@ -112,6 +112,13 @@
 
         @if (!_previewMode)
         {
+            @if (_mobilePanel != MobilePanel.None)
+            {
+                <button type="button"
+                        class="mobile-panel-backdrop lg:hidden"
+                        aria-label="Đóng bảng công cụ"
+                        @onclick="CloseMobilePanel"></button>
+            }
             <nav class="mobile-editor-dock lg:hidden" aria-label="Công cụ thiết kế nhanh">
                 <button type="button" class="mobile-dock-action @(_mobilePanel == MobilePanel.Tools ? "is-active" : "")" @onclick="() => ToggleMobilePanel(MobilePanel.Tools)">
                     <span class="material-symbols-outlined">add_circle</span>

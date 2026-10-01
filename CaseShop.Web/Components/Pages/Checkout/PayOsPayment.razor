@@ -1,0 +1,109 @@
+@page "/checkout/payment/{OrderCode}"
+@rendermode InteractiveServer
+@implements IAsyncDisposable
+@using CaseShop.Web.Services.Payments
+@inject IOrderService OrderService
+@inject IPaymentService PaymentService
+@inject ICartService CartService
+@inject IJSRuntime JSRuntime
+@inject NavigationManager NavigationManager
+
+<PageTitle>Thanh toán QR — CaseShop</PageTitle>
+<main class="mx-auto w-full max-w-5xl px-margin-mobile py-8 lg:px-margin lg:py-14">
+    @if (_isLoading)
+    {
+        <div class="flex min-h-[50vh] flex-col items-center justify-center gap-4"><AppSpinner Size="AppSpinner.SpinnerSize.Large" /><p>Đang tạo mã QR an toàn...</p></div>
+    }
+    else if (_error is not null || _order is null)
+    {
+        <AppEmptyState Icon="error_outline" Title="Không thể mở phiên thanh toán" Description="@(_error ?? "Không tìm thấy đơn hàng.")"><AppButton Text="Thử lại" Icon="refresh" OnClick="RetryLoadAsync" /></AppEmptyState>
+    }
+    else
+    {
+        <div class="grid gap-6 lg:grid-cols-[1.05fr_.95fr]">
+            <section class="rounded-2xl bg-surface-container-lowest p-6 text-center shadow-lg sm:p-9">
+                <div class="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-full bg-secondary-container"><span class="material-symbols-outlined">qr_code_2</span></div>
+                <p class="font-overline text-overline uppercase tracking-widest text-on-surface-variant">Thanh toán đơn hàng</p>
+                <h1 class="mt-1 font-headline-md text-headline-md font-semibold">Quét mã bằng ứng dụng ngân hàng</h1>
+                @if (IsExpired)
+                {
+                    <div class="my-6 rounded-xl bg-error-container p-5 text-on-error-container"><p class="font-semibold">Mã QR đã hết hạn</p><p class="mt-1 text-body-sm">Tạo phiên mới để tiếp tục. Đơn hàng của bạn vẫn được giữ.</p></div>
+                    <AppButton Text="Tạo mã QR mới" Icon="refresh" IsLoading="_isRetrying" IsDisabled="_isRetrying" OnClick="RetryPaymentAsync" />
+                }
+                else
+                {
+                    <div id="payos-qr" class="mx-auto my-6 aspect-square w-full max-w-72 rounded-xl border border-outline-variant bg-white p-3 [&_svg]:h-full [&_svg]:w-full"></div>
+                    <p class="text-body-sm text-on-surface-variant">Mã còn hiệu lực trong <strong class="text-on-surface">@RemainingText</strong></p>
+                }
+            </section>
+            <aside class="space-y-4 rounded-2xl bg-surface-container-low p-6 sm:p-8">
+                <div class="flex items-center justify-between"><span class="text-on-surface-variant">Mã đơn</span><strong>@_order.OrderCode</strong></div>
+                <div class="rounded-xl bg-surface-container-lowest p-5"><p class="text-body-sm text-on-surface-variant">Số tiền cần thanh toán</p><p class="mt-1 font-headline-lg text-headline-lg font-bold">@_order.TotalAmount.ToString("N0")₫</p></div>
+                <div><p class="text-body-sm text-on-surface-variant">Nội dung</p><p class="mt-1 rounded-lg bg-surface-container-high p-3 font-mono font-semibold">CASESHOP @_order.OrderCode</p></div>
+                <div class="flex items-center gap-3 rounded-xl bg-surface-container-lowest p-4"><span class="relative flex h-3 w-3"><span class="absolute h-full w-full animate-ping rounded-full bg-primary opacity-30"></span><span class="relative h-3 w-3 rounded-full bg-primary"></span></span><div><p class="font-semibold">Đang chờ thanh toán...</p><p class="text-body-sm text-on-surface-variant">Trang tự cập nhật khi PayOS xác nhận.</p></div></div>
+                <ol class="space-y-2 text-body-sm text-on-surface-variant"><li>1. Mở ứng dụng ngân hàng hỗ trợ VietQR.</li><li>2. Quét QR và kiểm tra đúng số tiền.</li><li>3. Không sửa nội dung chuyển khoản.</li></ol>
+                @if (!string.IsNullOrWhiteSpace(_order.Payment?.CheckoutUrl)) { <a href="@_order.Payment.CheckoutUrl" target="_blank" rel="noopener noreferrer" class="flex h-11 items-center justify-center rounded-lg border border-outline-variant bg-surface-container-lowest font-semibold hover:bg-surface-container">Mở trang PayOS</a> }
+            </aside>
+        </div>
+    }
+</main>
+
+@code {
+    [Parameter] public string OrderCode { get; set; } = string.Empty;
+    [SupplyParameterFromQuery(Name = "clearCart")] public bool ClearCartOnSuccess { get; set; }
+    private OrderDetailDto? _order;
+    private bool _isLoading = true, _isRetrying, _qrRendered, _clearCartRequested, _cartCleared;
+    private string? _error;
+    private IJSObjectReference? _qrModule;
+    private readonly CancellationTokenSource _cts = new();
+    private bool IsExpired => _order?.Payment?.ExpiresAt <= DateTime.UtcNow;
+    private string RemainingText { get { var value = (_order?.Payment?.ExpiresAt ?? DateTime.UtcNow) - DateTime.UtcNow; return value <= TimeSpan.Zero ? "00:00" : $"{(int)value.TotalMinutes:00}:{value.Seconds:00}"; } }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+        if (_order?.PaymentStatus == PaymentStatus.Paid)
+        {
+            CompletePayment();
+        }
+        else
+        {
+            _ = PollAsync(_cts.Token);
+        }
+    }
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        try
+        {
+            if (firstRender) _qrModule = await JSRuntime.InvokeAsync<IJSObjectReference>("import", "./js/payment-qr.js");
+            if (!_qrRendered && _qrModule is not null && !string.IsNullOrWhiteSpace(_order?.Payment?.QrCode) && !IsExpired) { await _qrModule.InvokeVoidAsync("render", "payos-qr", _order.Payment.QrCode); _qrRendered = true; }
+            if (_clearCartRequested && !_cartCleared)
+            {
+                _clearCartRequested = false;
+                await CartService.ClearAsync();
+                _cartCleared = true;
+                NavigationManager.NavigateTo($"/checkout/success/{OrderCode}");
+            }
+        }
+        catch (JSException) { _error = "Không thể hiển thị QR. Hãy mở trang PayOS để thanh toán."; }
+    }
+    private async Task LoadAsync()
+    {
+        try { _order = await OrderService.GetOrderByCodeAsync(OrderCode); _error = _order is null ? "Không tìm thấy đơn hàng." : null; }
+        catch { _error = "Không thể kiểm tra trạng thái thanh toán."; }
+        finally { _isLoading = false; }
+    }
+    private async Task PollAsync(CancellationToken token)
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(4));
+        try { while (await timer.WaitForNextTickAsync(token)) { await LoadAsync(); if (_order?.PaymentStatus == PaymentStatus.Paid) { CompletePayment(); await InvokeAsync(StateHasChanged); return; } await InvokeAsync(StateHasChanged); } } catch (OperationCanceledException) { }
+    }
+    private void CompletePayment()
+    {
+        if (ClearCartOnSuccess) _clearCartRequested = true;
+        else NavigationManager.NavigateTo($"/checkout/success/{OrderCode}");
+    }
+    private async Task RetryPaymentAsync(MouseEventArgs _) { if (_order is null) return; _isRetrying = true; try { await PaymentService.CreatePayOsPaymentAsync(_order.Id); _qrRendered = false; await LoadAsync(); } catch { _error = "Không thể tạo lại mã QR. Vui lòng thử lại."; } finally { _isRetrying = false; } }
+    private async Task RetryLoadAsync(MouseEventArgs _) { _isLoading = true; _error = null; await LoadAsync(); }
+    public async ValueTask DisposeAsync() { _cts.Cancel(); _cts.Dispose(); try { if (_qrModule is not null) await _qrModule.DisposeAsync(); } catch (JSDisconnectedException) { } }
+}

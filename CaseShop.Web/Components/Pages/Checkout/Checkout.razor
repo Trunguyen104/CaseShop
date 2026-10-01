@@ -1,397 +1,135 @@
 @page "/checkout"
 @rendermode InteractiveServer
-@using CaseShop.Web.DTOs
-@using CaseShop.Web.Entities
-@using CaseShop.Web.Services
+@using System.ComponentModel.DataAnnotations
 @using CaseShop.Web.Components.Pages.Checkout.Components
 @inject IProductService ProductService
 @inject IOrderService OrderService
 @inject ICartService CartService
 @inject NavigationManager NavigationManager
+@inject ILogger<Checkout> Logger
 
-<PageTitle>Đặt hàng — CaseShop</PageTitle>
-
-<div class="flex flex-col w-full">
-
-    @if (_isLoading)
-    {
-        <!-- Loading State -->
-        <div class="w-full max-w-7xl mx-auto px-margin-mobile lg:px-margin py-24 flex flex-col items-center justify-center gap-4">
-            <AppSpinner Size="AppSpinner.SpinnerSize.Large" />
-            <p class="font-body-md text-body-md text-on-surface-variant">Đang tải thông tin sản phẩm...</p>
-        </div>
-    }
-    else if (_loadError is not null)
-    {
-        <!-- Error State -->
-        <div class="w-full max-w-7xl mx-auto px-margin-mobile lg:px-margin py-16">
-            <div class="max-w-md mx-auto bg-surface-container-lowest rounded-xl p-8 shadow-sm flex flex-col items-center gap-4 text-center">
-                <span class="material-symbols-outlined text-[48px] text-on-surface-variant">error_outline</span>
-                <h1 class="font-headline-sm text-headline-sm text-on-surface">Không thể tiếp tục</h1>
-                <p class="font-body-md text-body-md text-on-surface-variant">@_loadError</p>
-                <a href="/shop" class="inline-flex items-center justify-center px-6 py-2.5 rounded-lg bg-primary text-on-primary font-label-md text-label-md hover:bg-neutral-800 transition-all">
-                    Quay lại sản phẩm
-                </a>
-            </div>
-        </div>
-    }
-    else if (_cartItems.Count == 0)
-    {
-        <!-- Product Not Found State -->
-        <div class="w-full max-w-7xl mx-auto px-margin-mobile lg:px-margin py-16">
-            <div class="max-w-md mx-auto bg-surface-container-lowest rounded-xl p-8 shadow-sm flex flex-col items-center gap-4 text-center">
-                <span class="material-symbols-outlined text-[48px] text-on-surface-variant">inventory_2</span>
-                <h1 class="font-headline-sm text-headline-sm text-on-surface">Giỏ hàng đang trống</h1>
-                <p class="font-body-md text-body-md text-on-surface-variant">Thêm sản phẩm vào giỏ trước khi tiến hành đặt hàng.</p>
-                <a href="/cart" class="inline-flex items-center justify-center px-6 py-2.5 rounded-lg bg-primary text-on-primary font-label-md text-label-md hover:bg-neutral-800 transition-all">
-                    Quay lại giỏ hàng
-                </a>
-            </div>
-        </div>
-    }
-    else
-    {
-        <!-- Step Indicator Bar -->
-        <div class="w-full bg-surface-container-lowest border-b border-outline-variant">
-            <div class="max-w-7xl mx-auto px-margin-mobile lg:px-margin py-3.5 flex items-center justify-between flex-wrap gap-3">
-                <div class="flex items-center gap-2.5">
-                    <span class="font-overline text-overline uppercase text-on-surface-variant tracking-wider">Đặt hàng</span>
-                    <span class="w-1 h-1 rounded-full bg-outline-variant"></span>
-                    <span class="flex items-center gap-1.5">
-                        <span class="material-symbols-outlined text-[14px] text-on-surface-variant">lock</span>
-                        <span class="font-label-sm text-label-sm text-on-surface-variant">Bảo mật SSL</span>
-                    </span>
-                </div>
-                <div class="hidden sm:flex items-center gap-5 font-label-sm text-label-sm">
-                    <span class="text-on-surface font-semibold flex items-center gap-1.5">
-                        <span class="w-4 h-4 rounded-full bg-primary text-on-primary text-[10px] flex items-center justify-center font-bold shrink-0">1</span>
-                        Xác nhận &amp; Thanh toán
-                    </span>
-                    <span class="text-outline-variant">/</span>
-                    <span class="flex items-center gap-1.5 opacity-50">
-                        <span class="w-4 h-4 rounded-full bg-surface-container-high text-on-surface text-[10px] flex items-center justify-center font-bold shrink-0">2</span>
-                        Hoàn tất &amp; In ấn
-                    </span>
-                </div>
-            </div>
-        </div>
-
-        <!-- Main Checkout Grid -->
-        <div class="w-full max-w-7xl mx-auto px-margin-mobile lg:px-margin py-8 lg:py-12">
-            <EditForm id="checkout-form" Model="_checkoutModel" OnValidSubmit="HandlePlaceOrder" OnInvalidSubmit="HandleInvalidSubmit" FormName="checkout-form">
-                <DataAnnotationsValidator />
-
-                <div class="flex flex-col lg:flex-row items-start gap-8 lg:gap-12">
-
-                    <!-- LEFT COLUMN: Form (60%) -->
-                    <div class="w-full lg:w-[60%] flex flex-col gap-6">
-
-                        @if (_submitError is not null)
-                        {
-                            <div class="p-4 bg-error-container text-on-error-container rounded-xl font-body-sm text-body-sm flex items-start gap-3">
-                                <span class="material-symbols-outlined text-[20px] shrink-0 mt-0.5">error_outline</span>
-                                <div>
-                                    <span class="font-semibold block mb-0.5">Đặt hàng thất bại</span>
-                                    @_submitError
-                                </div>
-                            </div>
-                        }
-
-                        <!-- Section 1: Customer Details -->
-                        <section class="bg-surface-container-lowest p-6 sm:p-8 rounded-xl shadow-sm flex flex-col gap-6">
-                            <div class="flex items-center justify-between">
-                                <div class="space-y-0.5">
-                                    <span class="font-overline text-overline text-on-surface-variant uppercase tracking-widest">MỤC 01 / 02</span>
-                                    <h1 class="font-headline-md text-headline-md text-on-surface font-semibold tracking-tight">Thông tin nhận hàng</h1>
-                                </div>
-                                <div class="p-2 bg-surface-container rounded-lg text-on-surface shrink-0">
-                                    <span class="material-symbols-outlined text-[20px]">local_shipping</span>
-                                </div>
-                            </div>
-
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <!-- Full Name -->
-                                <div class="flex flex-col gap-1.5 sm:col-span-1">
-                                    <label class="font-label-md text-label-md font-medium text-on-surface" for="full-name">
-                                        Họ và tên <span class="text-error">*</span>
-                                    </label>
-                                    <InputText id="full-name"
-                                               class="w-full h-11 px-3.5 bg-surface-container-low text-on-surface font-body-md text-body-md rounded-lg outline-none focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline"
-                                               @bind-Value="_checkoutModel.CustomerName"
-                                               placeholder="Nhập họ và tên đầy đủ"
-                                               disabled="@_isSubmitting" />
-                                    <ValidationMessage For="@(() => _checkoutModel.CustomerName)" class="font-body-sm text-body-sm text-error mt-0.5" />
-                                </div>
-
-                                <!-- Phone -->
-                                <div class="flex flex-col gap-1.5 sm:col-span-1">
-                                    <label class="font-label-md text-label-md font-medium text-on-surface" for="phone">
-                                        Số điện thoại <span class="text-error">*</span>
-                                    </label>
-                                    <InputText id="phone"
-                                               class="w-full h-11 px-3.5 bg-surface-container-low text-on-surface font-body-md text-body-md rounded-lg outline-none focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline"
-                                               @bind-Value="_checkoutModel.Phone"
-                                               placeholder="VD: 0912345678"
-                                               disabled="@_isSubmitting" />
-                                    <ValidationMessage For="@(() => _checkoutModel.Phone)" class="font-body-sm text-body-sm text-error mt-0.5" />
-                                </div>
-
-                                <!-- Email -->
-                                <div class="flex flex-col gap-1.5 sm:col-span-2">
-                                    <label class="font-label-md text-label-md font-medium text-on-surface" for="email">
-                                        Email nhận thông báo &amp; vận đơn <span class="text-error">*</span>
-                                    </label>
-                                    <InputText id="email"
-                                               class="w-full h-11 px-3.5 bg-surface-container-low text-on-surface font-body-md text-body-md rounded-lg outline-none focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline"
-                                               @bind-Value="_checkoutModel.Email"
-                                               placeholder="email@domain.com"
-                                               disabled="@_isSubmitting" />
-                                    <ValidationMessage For="@(() => _checkoutModel.Email)" class="font-body-sm text-body-sm text-error mt-0.5" />
-                                    <p class="font-body-sm text-body-sm text-on-surface-variant">Thông tin mã tracking bưu kiện sẽ được gửi qua email này.</p>
-                                </div>
-
-                                <!-- Address -->
-                                <div class="flex flex-col gap-1.5 sm:col-span-2">
-                                    <label class="font-label-md text-label-md font-medium text-on-surface" for="address">
-                                        Địa chỉ giao hàng <span class="text-error">*</span>
-                                    </label>
-                                    <InputTextArea id="address"
-                                                   class="w-full p-3.5 bg-surface-container-low text-on-surface font-body-md text-body-md rounded-lg outline-none focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline resize-none"
-                                                   @bind-Value="_checkoutModel.Address"
-                                                   rows="3"
-                                                   placeholder="Số nhà, tên đường, phường/xã, quận/huyện, tỉnh/thành phố"
-                                                   disabled="@_isSubmitting" />
-                                    <ValidationMessage For="@(() => _checkoutModel.Address)" class="font-body-sm text-body-sm text-error mt-0.5" />
-                                </div>
-                            </div>
-                        </section>
-
-                        <!-- Section 2: Payment Method -->
-                        <section class="bg-surface-container-lowest p-6 sm:p-8 rounded-xl shadow-sm flex flex-col gap-6">
-                            <div class="flex items-center justify-between">
-                                <div class="space-y-0.5">
-                                    <span class="font-overline text-overline text-on-surface-variant uppercase tracking-widest">MỤC 02 / 02</span>
-                                    <h2 class="font-headline-md text-headline-md text-on-surface font-semibold tracking-tight">Phương thức thanh toán</h2>
-                                </div>
-                                <div class="p-2 bg-surface-container rounded-lg text-on-surface shrink-0">
-                                    <span class="material-symbols-outlined text-[20px]">payments</span>
-                                </div>
-                            </div>
-
-                            <InputRadioGroup @bind-Value="_checkoutModel.PaymentMethod">
-                                <div class="flex flex-col gap-3">
-                                    <!-- COD Option -->
-                                    <label class="relative flex items-start gap-4 p-4 sm:p-5 rounded-xl border @(_checkoutModel.PaymentMethod == PaymentMethodType.CashOnDelivery ? "bg-surface-container-lowest border-primary/30 shadow-md" : "bg-surface-container-low border-transparent hover:bg-surface-container") cursor-pointer transition-all"
-                                           for="payment-cod">
-                                        <InputRadio id="payment-cod"
-                                                    class="mt-0.5 w-4 h-4 accent-primary cursor-pointer shrink-0"
-                                                    Value="@PaymentMethodType.CashOnDelivery"
-                                                    disabled="@_isSubmitting" />
-                                        <div class="flex-1 flex flex-col gap-1 min-w-0">
-                                            <div class="flex items-center justify-between flex-wrap gap-2">
-                                                <span class="font-label-md text-label-md font-semibold text-on-surface flex items-center gap-2">
-                                                    Thanh toán khi nhận hàng (COD)
-                                                    <span class="px-2 py-0.5 rounded bg-surface-container-high text-on-surface font-label-sm text-label-sm">Khuyên dùng</span>
-                                                </span>
-                                                <span class="font-overline text-overline uppercase tracking-wider text-on-surface-variant">MIỄN PHÍ THU HỘ</span>
-                                            </div>
-                                            <p class="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
-                                                Khách hàng có thể kiểm tra tình trạng sản phẩm trước khi thanh toán tiền mặt cho bưu tá.
-                                            </p>
-                                        </div>
-                                    </label>
-
-                                    <!-- Bank Transfer Option -->
-                                    <label class="relative flex items-start gap-4 p-4 sm:p-5 rounded-xl border @(_checkoutModel.PaymentMethod == PaymentMethodType.BankTransfer ? "bg-surface-container-lowest border-primary/30 shadow-md" : "bg-surface-container-low border-transparent hover:bg-surface-container") cursor-pointer transition-all"
-                                           for="payment-bank">
-                                        <InputRadio id="payment-bank"
-                                                    class="mt-0.5 w-4 h-4 accent-primary cursor-pointer shrink-0"
-                                                    Value="@PaymentMethodType.BankTransfer"
-                                                    disabled="@_isSubmitting" />
-                                        <div class="flex-1 flex flex-col gap-1 min-w-0">
-                                            <div class="flex items-center justify-between flex-wrap gap-2">
-                                                <span class="font-label-md text-label-md font-semibold text-on-surface flex items-center gap-2">
-                                                    Chuyển khoản ngân hàng
-                                                    <span class="px-2 py-0.5 rounded bg-surface-container-highest text-on-surface font-label-sm text-label-sm">Xử lý tức thì</span>
-                                                </span>
-                                                <div class="flex items-center gap-1.5">
-                                                    <span class="text-[10px] font-semibold tracking-tight px-1.5 py-0.5 bg-surface-container rounded text-on-surface">VietQR</span>
-                                                    <span class="text-[10px] font-semibold tracking-tight px-1.5 py-0.5 bg-surface-container rounded text-on-surface">Napas247</span>
-                                                </div>
-                                            </div>
-                                            <p class="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
-                                                Hệ thống sẽ cung cấp thông tin tài khoản sau khi đặt hàng. Đơn hàng được xác nhận sau khi nhận được chuyển khoản.
-                                            </p>
-                                        </div>
-                                    </label>
-                                </div>
-                            </InputRadioGroup>
-                        </section>
-
-                        <!-- Trust Badges -->
-                        <CheckoutTrustBadges />
-
-                    </div>
-
-                    <!-- RIGHT COLUMN: Order Summary (40%) -->
-                    <div class="w-full lg:w-[40%] flex flex-col gap-4 lg:sticky lg:top-20">
-                        <CheckoutOrderSummary CartItems="@_cartItems" TotalQuantity="@TotalQuantity" Subtotal="@Subtotal" IsSubmitting="@_isSubmitting" FormId="checkout-form" SubmitError="@_submitError" />
-
-                        <!-- Packaging Info -->
-                        <div class="bg-surface-container-lowest p-5 rounded-xl shadow-sm flex items-center gap-4">
-                            <div class="w-11 h-11 rounded-lg bg-surface-container-low flex items-center justify-center text-on-surface shrink-0">
-                                <span class="material-symbols-outlined text-[22px]">package_2</span>
-                            </div>
-                            <div class="flex-1 min-w-0">
-                                <span class="font-label-md text-label-md font-semibold text-on-surface block">Đóng gói cẩn thận</span>
-                                <p class="font-body-sm text-body-sm text-on-surface-variant">Kèm seal niêm phong chống tráo đổi và thẻ bảo hành.</p>
-                            </div>
+<PageTitle>Thanh toán — CaseShop</PageTitle>
+@if (_isLoading)
+{
+    <div class="flex min-h-[55vh] flex-col items-center justify-center gap-4"><AppSpinner Size="AppSpinner.SpinnerSize.Large" /><p class="text-on-surface-variant">Đang chuẩn bị đơn hàng...</p></div>
+}
+else if (_loadError is not null)
+{
+    <AppEmptyState Icon="error_outline" Title="Không thể tiếp tục" Description="@_loadError" ButtonText="Quay lại cửa hàng" ButtonLink="/shop" Class="mx-auto my-16 max-w-lg" />
+}
+else if (_cartItems.Count == 0)
+{
+    <AppEmptyState Icon="shopping_cart" Title="Giỏ hàng đang trống" Description="Hãy thêm sản phẩm trước khi thanh toán." ButtonText="Khám phá sản phẩm" ButtonLink="/shop" Class="mx-auto my-16 max-w-lg" />
+}
+else
+{
+    <header class="border-b border-outline-variant bg-surface-container-lowest"><div class="mx-auto flex max-w-7xl items-center justify-between px-margin-mobile py-4 lg:px-margin"><div><p class="font-overline text-overline uppercase tracking-widest text-on-surface-variant">Checkout bảo mật</p><h1 class="font-headline-md text-headline-md font-semibold">Hoàn tất đơn hàng</h1></div><span class="hidden items-center gap-2 text-on-surface-variant sm:flex"><span class="material-symbols-outlined text-[18px]">lock</span>Bảo mật SSL</span></div></header>
+    <main class="mx-auto w-full max-w-7xl px-margin-mobile py-6 lg:px-margin lg:py-10">
+        <EditForm id="checkout-form" Model="_checkoutModel" OnValidSubmit="HandlePlaceOrderAsync" OnInvalidSubmit="HandleInvalidSubmit" FormName="checkout-form">
+            <DataAnnotationsValidator />
+            <div class="flex flex-col items-start gap-6 lg:flex-row lg:gap-10">
+                <div class="flex w-full flex-col gap-6 lg:w-[62%]">
+                    <section class="rounded-xl bg-surface-container-lowest p-5 shadow-sm sm:p-8">
+                        <h2 class="mb-5 font-headline-sm text-headline-sm font-semibold">Người nhận thông báo</h2>
+                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <div class="space-y-1.5"><label for="customer-name" class="font-label-md text-label-md font-medium">Họ và tên <span class="text-error">*</span></label><InputText id="customer-name" @bind-Value="_checkoutModel.CustomerName" @bind-Value:after="ClearSubmitError" disabled="@_isSubmitting" autocomplete="name" class="h-11 w-full rounded-lg bg-surface-container-low px-3.5 outline-none focus:ring-2 focus:ring-primary/20" /><ValidationMessage For="@(() => _checkoutModel.CustomerName)" class="text-error" /></div>
+                            <div class="space-y-1.5"><label for="customer-phone" class="font-label-md text-label-md font-medium">Số điện thoại <span class="text-error">*</span></label><InputText id="customer-phone" @bind-Value="_checkoutModel.Phone" @bind-Value:after="ClearSubmitError" disabled="@_isSubmitting" autocomplete="tel" class="h-11 w-full rounded-lg bg-surface-container-low px-3.5 outline-none focus:ring-2 focus:ring-primary/20" /><ValidationMessage For="@(() => _checkoutModel.Phone)" class="text-error" /></div>
+                            <div class="space-y-1.5 sm:col-span-2"><label for="customer-email" class="font-label-md text-label-md font-medium">Email nhận xác nhận và vận đơn <span class="text-error">*</span></label><InputText id="customer-email" @bind-Value="_checkoutModel.Email" @bind-Value:after="ClearSubmitError" disabled="@_isSubmitting" type="email" autocomplete="email" class="h-11 w-full rounded-lg bg-surface-container-low px-3.5 outline-none focus:ring-2 focus:ring-primary/20" /><ValidationMessage For="@(() => _checkoutModel.Email)" class="text-error" /><p class="text-body-sm text-body-sm text-on-surface-variant">Email chỉ được dùng để gửi xác nhận và cập nhật đơn hàng.</p></div>
                         </div>
-                    </div>
-
+                    </section>
+                    <DeliveryAddressSection IsDisabled="_isSubmitting" OnChanged="HandleAddressChanged" />
+                    <PaymentMethodSection Value="_checkoutModel.PaymentMethod" ValueChanged="HandlePaymentMethodChangedAsync" IsDisabled="_isSubmitting" />
+                    <CheckoutTrustBadges />
                 </div>
-            </EditForm>
-        </div>
-    }
-
-</div>
+                <aside class="w-full lg:sticky lg:top-20 lg:w-[38%]"><CheckoutOrderSummary CartItems="_cartItems" TotalQuantity="TotalQuantity" Subtotal="Subtotal" IsSubmitting="_isSubmitting" IsSubmitDisabled="@(!IsCheckoutReady)" FormId="checkout-form" SubmitError="@_submitError" /></aside>
+            </div>
+        </EditForm>
+    </main>
+}
 
 @code {
-    [SupplyParameterFromQuery(Name = "productId")]
-    public string? ProductIdParam { get; set; }
-
-    [SupplyParameterFromQuery(Name = "hasDesign")]
-    public string? HasDesignParam { get; set; }
-
-    [SupplyParameterFromQuery(Name = "previewUrl")]
-    public string? PreviewUrlParam { get; set; }
-
-    [SupplyParameterFromQuery(Name = "designData")]
-    public string? DesignDataParam { get; set; }
-
-    [SupplyParameterFromQuery(Name = "variant")]
-    public string? VariantParam { get; set; }
-
-    private List<ClientCartItem> _cartItems = new();
-    private bool _isLoading = true;
-    private string? _loadError;
-    private string? _submitError;
-    private bool _isSubmitting = false;
-    private bool _initialized;
-    private bool _checkoutFromCart;
-
-    private CheckoutDto _checkoutModel = new();
-    private int TotalQuantity => _cartItems.Sum(item => item.Quantity);
-    private decimal Subtotal => _cartItems.Sum(item => item.UnitPrice * item.Quantity);
+    [SupplyParameterFromQuery(Name = "productId")] public string? ProductIdParam { get; set; }
+    [SupplyParameterFromQuery(Name = "hasDesign")] public string? HasDesignParam { get; set; }
+    [SupplyParameterFromQuery(Name = "previewUrl")] public string? PreviewUrlParam { get; set; }
+    [SupplyParameterFromQuery(Name = "designData")] public string? DesignDataParam { get; set; }
+    [SupplyParameterFromQuery(Name = "variant")] public string? VariantParam { get; set; }
+    private List<ClientCartItem> _cartItems = [];
+    private readonly CheckoutDto _checkoutModel = new() { PaymentMethod = PaymentMethodType.PayOSQr };
+    private bool _isLoading = true, _isSubmitting, _initialized, _checkoutFromCart, _clearCartRequested;
+    private string? _loadError, _submitError;
+    private string? _pendingNavigationUrl;
+    private int TotalQuantity => _cartItems.Sum(x => x.Quantity);
+    private decimal Subtotal => _cartItems.Sum(x => x.UnitPrice * x.Quantity);
+    private bool IsCheckoutReady => Validator.TryValidateObject(
+        _checkoutModel,
+        new ValidationContext(_checkoutModel),
+        validationResults: null,
+        validateAllProperties: true);
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!firstRender || _initialized) return;
-        _initialized = true;
-        _isLoading = true;
-        try
+        if (firstRender && !_initialized)
         {
-            if (Guid.TryParse(ProductIdParam, out var productId))
+            _initialized = true;
+            try
             {
-                var product = await ProductService.GetProductByIdAsync(productId);
-                if (product is not null && product.IsActive)
+                if (Guid.TryParse(ProductIdParam, out var productId))
                 {
-                    var customDesign = HasDesignParam == "1"
-                        && !string.IsNullOrWhiteSpace(PreviewUrlParam)
-                        && !string.IsNullOrWhiteSpace(DesignDataParam)
-                        ? new CustomDesignInputDto
-                        {
-                            PreviewImageUrl = PreviewUrlParam,
-                            DesignData = DesignDataParam
-                        }
-                        : null;
-
-                    _cartItems.Add(new ClientCartItem
-                    {
-                        ProductId = product.Id,
-                        ProductName = product.Name,
-                        ImageUrl = product.ImageUrl,
-                        UnitPrice = product.Price,
-                        Quantity = 1,
-                        Variant = VariantParam,
-                        CustomDesign = customDesign
-                    });
+                    var product = await ProductService.GetProductByIdAsync(productId);
+                    if (product is not null && product.IsActive) _cartItems.Add(new() { ProductId = product.Id, ProductName = product.Name, ImageUrl = product.ImageUrl, UnitPrice = product.Price, Variant = VariantParam, CustomDesign = HasDesignParam == "1" && !string.IsNullOrWhiteSpace(PreviewUrlParam) && !string.IsNullOrWhiteSpace(DesignDataParam) ? new() { PreviewImageUrl = PreviewUrlParam, DesignData = DesignDataParam } : null });
                 }
+                else { _cartItems = (await CartService.GetItemsAsync()).ToList(); _checkoutFromCart = true; }
+                _checkoutModel.Items = BuildItems();
             }
-            else
-            {
-                _cartItems = (await CartService.GetItemsAsync()).ToList();
-                _checkoutFromCart = true;
-            }
+            catch { _loadError = "Không thể tải giỏ hàng. Vui lòng thử lại."; }
+            finally { _isLoading = false; StateHasChanged(); }
+        }
 
-            _checkoutModel.Items = BuildCheckoutItems();
-        }
-        catch
+        if (_clearCartRequested && _pendingNavigationUrl is not null)
         {
-            _loadError = "Đã có lỗi xảy ra khi tải thông tin. Vui lòng thử lại.";
-        }
-        finally
-        {
-            _isLoading = false;
-            StateHasChanged();
+            _clearCartRequested = false;
+            await CartService.ClearAsync();
+            NavigationManager.NavigateTo(_pendingNavigationUrl);
         }
     }
 
-    private async Task HandlePlaceOrder()
+    private void HandleAddressChanged(DeliveryAddressSelection value)
     {
-        if (_isSubmitting) return;
-        if (_cartItems.Count == 0) return;
-
-        _submitError = null;
-
-        _isSubmitting = true;
-        StateHasChanged();
-
+        ClearSubmitError();
+        _checkoutModel.ProvinceCode = value.ProvinceCode; _checkoutModel.ProvinceName = value.ProvinceName; _checkoutModel.WardCode = value.WardCode; _checkoutModel.WardName = value.WardName;
+        _checkoutModel.AddressLine = value.AddressLine;
+    }
+    private Task HandlePaymentMethodChangedAsync(PaymentMethodType value)
+    {
+        _checkoutModel.PaymentMethod = value;
+        ClearSubmitError();
+        return Task.CompletedTask;
+    }
+    private async Task HandlePlaceOrderAsync()
+    {
+        if (_isSubmitting) return; _isSubmitting = true; _submitError = null;
         try
         {
-            _checkoutModel.Items = BuildCheckoutItems();
-
+            _checkoutModel.Items = BuildItems();
             var result = await OrderService.CreateOrderAsync(_checkoutModel);
-
-            if (_checkoutFromCart)
+            if (result.PaymentMethod == PaymentMethodType.PayOSQr)
             {
-                await CartService.ClearAsync();
+                var clearCartQuery = _checkoutFromCart ? "?clearCart=true" : string.Empty;
+                NavigationManager.NavigateTo($"/checkout/payment/{result.OrderCode}{clearCartQuery}");
+                return;
             }
 
-            NavigationManager.NavigateTo($"/checkout/success/{result.OrderCode}");
+            _pendingNavigationUrl = $"/checkout/success/{result.OrderCode}";
+            _clearCartRequested = _checkoutFromCart;
+            if (_clearCartRequested) StateHasChanged();
+            else NavigationManager.NavigateTo(_pendingNavigationUrl);
         }
-        catch (ArgumentException ex)
-        {
-            _submitError = ex.Message;
-        }
-        catch (InvalidOperationException ex)
-        {
-            _submitError = ex.Message;
-        }
-        catch (Exception ex)
-        {
-            _submitError = $"Đặt hàng thất bại: {ex.Message}";
-        }
-        finally
-        {
-            _isSubmitting = false;
-            StateHasChanged();
-        }
+        catch (ArgumentException ex) { _submitError = ex.Message; }
+        catch (InvalidOperationException ex) { _submitError = ex.Message; }
+        catch (Exception ex) { Logger.LogError(ex, "Unexpected checkout submission failure."); _submitError = "Không thể tạo đơn hàng lúc này. Vui lòng thử lại."; }
+        finally { _isSubmitting = false; }
     }
-
-    private void HandleInvalidSubmit()
-    {
-        _submitError = "Vui lòng kiểm tra và điền đầy đủ các thông tin bắt buộc (*).";
-        StateHasChanged();
-    }
-
-    private List<CheckoutItemDto> BuildCheckoutItems() => _cartItems
-        .Select(item => new CheckoutItemDto
-        {
-            ProductId = item.ProductId,
-            Quantity = item.Quantity,
-            Variant = item.Variant,
-            CustomDesign = item.CustomDesign
-        })
-        .ToList();
+    private void HandleInvalidSubmit() => _submitError = "Vui lòng kiểm tra các trường bắt buộc và định dạng email.";
+    private void ClearSubmitError() => _submitError = null;
+    private List<CheckoutItemDto> BuildItems() => _cartItems.Select(x => new CheckoutItemDto { ProductId = x.ProductId, Quantity = x.Quantity, Variant = x.Variant, CustomDesign = x.CustomDesign }).ToList();
 }

@@ -565,30 +565,60 @@ button:disabled, ::deep button:disabled { opacity: .45; cursor: not-allowed; }
 ::deep .guide-dot-cutout { background: #fb7185; }
 
 @media (max-width: 1023px) {
-    .editor-studio-shell { padding-bottom: 5.25rem; }
-    .studio-workspace { display: block; min-height: calc(100dvh - 9rem); }
+    .editor-studio-shell {
+        min-height: calc(100dvh - 3.5rem);
+        padding-bottom: calc(4.75rem + env(safe-area-inset-bottom));
+    }
+    .studio-workspace { display: block; min-height: 0; flex: 1; }
     ::deep .studio-panel, .studio-panel {
         position: fixed;
         z-index: 60;
         left: 0;
         right: 0;
         bottom: 0;
-        height: min(78dvh, 720px);
+        height: min(82dvh, 720px);
         max-height: none;
+        padding-bottom: env(safe-area-inset-bottom);
         border: 0;
         border-radius: 1.5rem 1.5rem 0 0;
         box-shadow: 0 -18px 60px rgba(15, 23, 42, .22);
         transform: translateY(105%);
         visibility: hidden;
-        transition: transform .24s ease, visibility .24s ease;
+        overscroll-behavior: contain;
+        touch-action: pan-y;
+        transition: transform .24s ease, visibility 0s linear .24s;
     }
     ::deep .studio-panel.mobile-panel-open, .studio-panel.mobile-panel-open {
         transform: translateY(0);
         visibility: visible;
+        transition: transform .24s ease, visibility 0s;
     }
     ::deep .studio-panel > .overflow-y-auto, .studio-panel > .overflow-y-auto { max-height: none; }
-    ::deep .studio-canvas, .studio-canvas { height: calc(100dvh - 9rem); min-height: 570px; }
-    ::deep .studio-viewport, .studio-viewport { margin-top: 2.75rem; margin-bottom: 4.75rem; }
+    ::deep .studio-canvas, .studio-canvas {
+        height: calc(100dvh - 8.5rem);
+        min-height: 30rem;
+        padding: .75rem;
+        padding-bottom: 1rem;
+    }
+    ::deep .studio-viewport, .studio-viewport {
+        min-height: 0;
+        margin-top: 2.25rem;
+        margin-bottom: 3.5rem;
+        overscroll-behavior: contain;
+    }
+    ::deep .studio-paper, .studio-paper {
+        max-width: calc(100vw - 1.5rem);
+        flex: none;
+    }
+    .mobile-panel-backdrop {
+        position: fixed;
+        z-index: 55;
+        inset: 0;
+        border: 0;
+        background: rgba(15, 23, 42, .38);
+        backdrop-filter: blur(2px);
+        animation: mobile-backdrop-in .18s ease-out;
+    }
 }
 @media (min-width: 1024px) {
     .studio-workspace { height: max(800px, calc(100vh - 10rem)); }
@@ -599,8 +629,39 @@ button:disabled, ::deep button:disabled { opacity: .45; cursor: not-allowed; }
 }
 
 @media (max-width: 480px) {
-    .mobile-editor-dock { left: .5rem; right: .5rem; bottom: max(.5rem, env(safe-area-inset-bottom)); }
+    .mobile-editor-dock {
+        left: .5rem;
+        right: .5rem;
+        bottom: max(.5rem, env(safe-area-inset-bottom));
+        grid-template-columns: repeat(3, minmax(2.8rem, .7fr)) minmax(6.5rem, 1.35fr);
+    }
     .mobile-dock-action span:last-child { font-size: .64rem; }
     .mobile-dock-cta { font-size: .68rem; }
-    ::deep .print-guide-legend { bottom: 4.25rem; gap: .5rem; }
+    ::deep .print-guide-legend {
+        bottom: 4rem;
+        max-width: calc(100vw - 1.5rem);
+        gap: .45rem;
+        padding-inline: .55rem;
+        overflow-x: auto;
+    }
+    ::deep .studio-canvas, .studio-canvas { min-height: 27rem; }
+    ::deep .studio-viewport, .studio-viewport { margin-top: 2rem; margin-bottom: 3.25rem; }
+}
+
+@media (max-width: 359px) {
+    .mobile-dock-action span:last-child { display: none; }
+    .mobile-dock-action .material-symbols-outlined { font-size: 1.35rem; }
+    .mobile-editor-dock { grid-template-columns: repeat(3, minmax(2.65rem, .55fr)) minmax(6.25rem, 1.45fr); }
+}
+
+@keyframes mobile-backdrop-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    ::deep .studio-panel, .studio-panel,
+    .mobile-panel-backdrop,
+    .mobile-dock-action,
+    .mobile-dock-cta { transition: none; animation: none; }
 }

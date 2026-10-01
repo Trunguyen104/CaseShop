@@ -1,8 +1,14 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-const source = path.resolve(__dirname, '../node_modules/cropperjs/dist/cropper.min.js');
-const destination = path.resolve(__dirname, '../wwwroot/vendor/cropperjs/cropper.min.js');
+const files = [
+  ['../node_modules/cropperjs/dist/cropper.min.js', '../wwwroot/vendor/cropperjs/cropper.min.js'],
+  ['../node_modules/qrcode-generator/dist/qrcode.js', '../wwwroot/vendor/qrcode/qrcode.js'],
+];
 
-fs.mkdirSync(path.dirname(destination), { recursive: true });
-fs.copyFileSync(source, destination);
+for (const [sourcePath, destinationPath] of files) {
+  const source = path.resolve(__dirname, sourcePath);
+  const destination = path.resolve(__dirname, destinationPath);
+  fs.mkdirSync(path.dirname(destination), { recursive: true });
+  fs.copyFileSync(source, destination);
+}

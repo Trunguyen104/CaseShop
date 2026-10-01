@@ -15,5 +15,6 @@ public interface IOrderService
     Task<OrderDetailDto?> GetOrderByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<OrderDetailDto?> GetOrderByCodeAsync(string orderCode, CancellationToken cancellationToken = default);
     Task<bool> UpdateOrderStatusAsync(Guid orderId, OrderStatus newStatus, CancellationToken cancellationToken = default);
+    Task<bool> RetryConfirmationEmailAsync(Guid orderId, CancellationToken cancellationToken = default);
 }
 

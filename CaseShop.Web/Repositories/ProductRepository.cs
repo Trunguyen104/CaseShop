@@ -32,7 +32,19 @@ public class ProductRepository : IProductRepository
 
     public async Task<Product?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        return await _context.Products.FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
+        return await _context.Products.AsNoTracking().FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<Product>> GetByIdsAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken = default)
+    {
+        if (ids.Count == 0)
+        {
+            return Array.Empty<Product>();
+        }
+
+        return await _context.Products.AsNoTracking()
+            .Where(p => ids.Contains(p.Id))
+            .ToListAsync(cancellationToken);
     }
 
     public async Task AddAsync(Product product, CancellationToken cancellationToken = default)

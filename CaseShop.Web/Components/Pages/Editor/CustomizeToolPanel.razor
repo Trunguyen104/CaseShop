@@ -16,13 +16,13 @@
         </button>
     </div>
     <div class="flex items-center p-2 bg-surface-container-low gap-1 overflow-x-auto border-b border-outline-variant">
-        <button class="@(_activeTab == "sticker" ? "bg-primary text-on-primary shadow-sm" : "text-on-surface-variant hover:bg-surface") flex-1 py-2 px-1 text-center rounded-md font-label-sm text-label-sm font-medium transition-all"
+        <button class="@(_activeTab == "sticker" ? "bg-primary text-on-primary shadow-sm" : "text-on-surface-variant hover:bg-surface") min-h-11 flex-1 py-2 px-1 text-center rounded-md font-label-sm text-label-sm font-medium transition-all"
                 @onclick='() => _activeTab = "sticker"'>Sticker</button>
-        <button class="@(_activeTab == "upload" ? "bg-primary text-on-primary shadow-sm" : "text-on-surface-variant hover:bg-surface") flex-1 py-2 px-1 text-center rounded-md font-label-sm text-label-sm font-medium transition-all"
+        <button class="@(_activeTab == "upload" ? "bg-primary text-on-primary shadow-sm" : "text-on-surface-variant hover:bg-surface") min-h-11 flex-1 py-2 px-1 text-center rounded-md font-label-sm text-label-sm font-medium transition-all"
                 @onclick='() => _activeTab = "upload"'>Tải ảnh</button>
-        <button class="@(_activeTab == "text" ? "bg-primary text-on-primary shadow-sm" : "text-on-surface-variant hover:bg-surface") flex-1 py-2 px-1 text-center rounded-md font-label-sm text-label-sm font-medium transition-all"
+        <button class="@(_activeTab == "text" ? "bg-primary text-on-primary shadow-sm" : "text-on-surface-variant hover:bg-surface") min-h-11 flex-1 py-2 px-1 text-center rounded-md font-label-sm text-label-sm font-medium transition-all"
                 @onclick='() => _activeTab = "text"'>Văn bản</button>
-        <button class="@(_activeTab == "background" ? "bg-primary text-on-primary shadow-sm" : "text-on-surface-variant hover:bg-surface") flex-1 py-2 px-1 text-center rounded-md font-label-sm text-label-sm font-medium transition-all"
+        <button class="@(_activeTab == "background" ? "bg-primary text-on-primary shadow-sm" : "text-on-surface-variant hover:bg-surface") min-h-11 flex-1 py-2 px-1 text-center rounded-md font-label-sm text-label-sm font-medium transition-all"
                 @onclick='() => _activeTab = "background"'>Màu nền</button>
     </div>
     <div class="flex-1 overflow-y-auto p-4 space-y-5">

@@ -1,0 +1,31 @@
+<section class="flex flex-col gap-6 rounded-xl bg-surface-container-lowest p-5 shadow-sm sm:p-8">
+    <div class="flex items-center justify-between"><div><span class="font-overline text-overline uppercase tracking-widest text-on-surface-variant">Mục 02 / 02</span><h2 class="font-headline-md text-headline-md font-semibold">Phương thức thanh toán</h2></div><span class="material-symbols-outlined rounded-lg bg-surface-container p-2">payments</span></div>
+    <InputRadioGroup TValue="PaymentMethodType"
+                     Value="Value"
+                     ValueChanged="@HandleChangedAsync"
+                     ValueExpression="@(() => Value)">
+        <div class="space-y-3">
+            @foreach (var option in Options)
+            {
+                <label class="flex cursor-pointer items-start gap-4 rounded-xl border p-4 transition sm:p-5 @(Value == option.Value ? "border-primary bg-surface-container-lowest shadow-md" : "border-transparent bg-surface-container-low hover:bg-surface-container")">
+                    <InputRadio Value="option.Value" disabled="@IsDisabled" class="mt-1 h-4 w-4 shrink-0 accent-primary" />
+                    <span class="material-symbols-outlined rounded-lg bg-surface-container p-2 text-[21px]">@option.Icon</span>
+                    <span class="min-w-0 flex-1"><span class="flex flex-wrap items-center gap-2 font-label-md text-label-md font-semibold">@option.Title @if(option.Badge is not null){<span class="rounded bg-secondary-container px-2 py-0.5 font-label-sm text-label-sm">@option.Badge</span>}</span><span class="mt-1 block font-body-sm text-body-sm leading-relaxed text-on-surface-variant">@option.Description</span></span>
+                </label>
+            }
+        </div>
+    </InputRadioGroup>
+</section>
+
+@code {
+    [Parameter] public PaymentMethodType Value { get; set; }
+    [Parameter] public EventCallback<PaymentMethodType> ValueChanged { get; set; }
+    [Parameter] public bool IsDisabled { get; set; }
+    private Task HandleChangedAsync(PaymentMethodType value) => ValueChanged.InvokeAsync(value);
+    private static readonly (PaymentMethodType Value, string Icon, string Title, string Description, string? Badge)[] Options =
+    [
+        (PaymentMethodType.PayOSQr, "qr_code_2", "Thanh toán QR qua PayOS", "Quét VietQR bằng ứng dụng ngân hàng. Đơn được xác nhận tự động qua webhook bảo mật.", "Nhanh nhất"),
+        (PaymentMethodType.CashOnDelivery, "local_shipping", "Thanh toán khi nhận hàng", "Thanh toán cho đơn vị vận chuyển sau khi nhận và kiểm tra kiện hàng.", null),
+        (PaymentMethodType.BankTransfer, "account_balance", "Chuyển khoản thủ công", "Đơn hàng được xử lý sau khi CaseShop hoàn tất đối soát giao dịch.", null)
+    ];
+}

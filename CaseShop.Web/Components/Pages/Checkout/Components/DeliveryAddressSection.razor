@@ -1,0 +1,84 @@
+@using CaseShop.Web.Services.Addresses
+@inject IVietnamAddressService AddressService
+@inject ILogger<DeliveryAddressSection> Logger
+
+<section class="flex flex-col gap-6 rounded-xl bg-surface-container-lowest p-5 shadow-sm sm:p-8">
+    <div class="flex items-center justify-between gap-4">
+        <div><span class="font-overline text-overline uppercase tracking-widest text-on-surface-variant">Mục 01 / 02</span><h2 class="font-headline-md text-headline-md font-semibold">Thông tin nhận hàng</h2></div>
+        <span class="material-symbols-outlined rounded-lg bg-surface-container p-2 text-[20px]">local_shipping</span>
+    </div>
+    @if (_isLoading)
+    {
+        <div class="flex min-h-32 items-center justify-center gap-3 text-on-surface-variant"><AppSpinner /> Đang tải danh mục địa chỉ...</div>
+    }
+    else if (_error is not null)
+    {
+        <div class="rounded-xl bg-error-container p-4 text-on-error-container">@_error</div>
+    }
+    else
+    {
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div class="flex flex-col gap-1.5">
+                <label for="province" class="font-label-md text-label-md font-medium">Tỉnh/Thành phố <span class="text-error">*</span></label>
+                <select id="province" value="@_provinceCode" @onchange="HandleProvinceChangedAsync" disabled="@IsDisabled" class="h-11 rounded-lg bg-surface-container-low px-3.5 outline-none focus:ring-2 focus:ring-primary/20">
+                    <option value="0">Chọn Tỉnh/Thành phố</option>
+                    @foreach (var province in _provinces) { <option value="@province.Code">@province.Name</option> }
+                </select>
+            </div>
+            <div class="flex flex-col gap-1.5">
+                <label for="ward" class="font-label-md text-label-md font-medium">Phường/Xã <span class="text-error">*</span></label>
+                <select id="ward" value="@_wardCode" @onchange="HandleWardChangedAsync" disabled="@(IsDisabled || _isLoadingWards || _provinceCode == 0)" class="h-11 rounded-lg bg-surface-container-low px-3.5 outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50">
+                    <option value="0">@(_isLoadingWards ? "Đang tải..." : "Chọn Phường/Xã")</option>
+                    @foreach (var ward in _wards) { <option value="@ward.Code">@ward.Name</option> }
+                </select>
+            </div>
+            <div class="flex flex-col gap-1.5 sm:col-span-2">
+                <label for="address-line" class="font-label-md text-label-md font-medium">Số nhà, tên đường, thông tin bổ sung <span class="text-error">*</span></label>
+                <InputTextArea id="address-line" @bind-Value="_addressLine" @bind-Value:after="NotifyChangedAsync" disabled="@IsDisabled" class="min-h-24 resize-none rounded-lg bg-surface-container-low p-3.5 outline-none focus:ring-2 focus:ring-primary/20" placeholder="Ví dụ: 123 Nguyễn Huệ, tòa nhà A, tầng 2" />
+            </div>
+        </div>
+        <p class="rounded-lg bg-surface-container-low px-4 py-3 font-body-sm text-body-sm text-on-surface-variant">Vui lòng ghi rõ số nhà, tên đường, tòa nhà hoặc chỉ dẫn giao hàng để đơn vị vận chuyển dễ tìm địa chỉ.</p>
+    }
+</section>
+
+@code {
+    [Parameter] public bool IsDisabled { get; set; }
+    [Parameter] public EventCallback<DeliveryAddressSelection> OnChanged { get; set; }
+    private IReadOnlyList<VietnamProvinceDto> _provinces = [];
+    private IReadOnlyList<VietnamWardDto> _wards = [];
+    private int _provinceCode;
+    private int _wardCode;
+    private string _addressLine = string.Empty;
+    private bool _isLoading = true;
+    private bool _isLoadingWards;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try { _provinces = await AddressService.GetProvincesAsync(); }
+        catch (Exception ex) { Logger.LogError(ex, "Failed to load the Vietnam province list."); _error = "Không thể tải danh mục địa chỉ. Vui lòng thử lại."; }
+        finally { _isLoading = false; }
+    }
+
+    private async Task HandleProvinceChangedAsync(ChangeEventArgs args)
+    {
+        _provinceCode = int.TryParse(args.Value?.ToString(), out var value) ? value : 0;
+        _wardCode = 0; _wards = [];
+        if (_provinceCode > 0)
+        {
+            _isLoadingWards = true;
+            try { _wards = await AddressService.GetWardsAsync(_provinceCode); }
+            catch (Exception ex) { Logger.LogError(ex, "Failed to load wards for province {ProvinceCode}.", _provinceCode); _error = "Không thể tải danh sách Phường/Xã."; }
+            finally { _isLoadingWards = false; }
+        }
+        await NotifyChangedAsync();
+    }
+
+    private async Task HandleWardChangedAsync(ChangeEventArgs args) { _wardCode = int.TryParse(args.Value?.ToString(), out var value) ? value : 0; await NotifyChangedAsync(); }
+    private Task NotifyChangedAsync()
+    {
+        var province = _provinces.FirstOrDefault(x => x.Code == _provinceCode);
+        var ward = _wards.FirstOrDefault(x => x.Code == _wardCode);
+        return OnChanged.InvokeAsync(new(_provinceCode, province?.Name ?? "", _wardCode, ward?.Name ?? "", _addressLine));
+    }
+}

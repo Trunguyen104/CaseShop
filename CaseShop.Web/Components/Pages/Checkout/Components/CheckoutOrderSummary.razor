@@ -16,7 +16,7 @@
                 <div class="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-surface-container-high">
                     @if (!string.IsNullOrWhiteSpace(item.ImageUrl))
                     {
-                        <img class="h-full w-full object-contain p-1 drop-shadow-sm" src="@item.ImageUrl" alt="@item.ProductName" />
+                        <img class="h-full w-full object-contain p-1 drop-shadow-sm" src="@item.ImageUrl" alt="@item.ProductName" loading="lazy" />
                     }
                     else
                     {
@@ -76,6 +76,7 @@
                    Variant="AppButton.AppButtonVariant.Primary"
                    Class="w-full group"
                    IsLoading="IsSubmitting"
+                   IsDisabled="@(IsSubmitDisabled || IsSubmitting)"
                    LoadingText="Đang xử lý..."
                    Text="Đặt hàng ngay">
             <ChildContent>
@@ -83,6 +84,10 @@
                 <span class="material-symbols-outlined text-[18px] group-hover:translate-x-1 transition-transform">arrow_forward</span>
             </ChildContent>
         </AppButton>
+        @if (IsSubmitDisabled && !IsSubmitting)
+        {
+            <p class="text-center font-body-sm text-body-sm text-on-surface-variant">Điền đầy đủ thông tin bắt buộc để đặt hàng.</p>
+        }
         <a class="w-full text-center py-2 text-on-surface-variant hover:text-on-surface font-label-md text-label-md font-medium transition-colors block" href="/cart">
             ← Quay lại giỏ hàng
         </a>
@@ -109,6 +114,9 @@
 
     [Parameter]
     public bool IsSubmitting { get; set; }
+
+    [Parameter]
+    public bool IsSubmitDisabled { get; set; }
 
     [Parameter]
     public string? FormId { get; set; }

@@ -4,6 +4,10 @@ using CaseShop.Web.Components;
 using CaseShop.Web.Data;
 using CaseShop.Web.Repositories;
 using CaseShop.Web.Services;
+using CaseShop.Web.Services.Addresses;
+using CaseShop.Web.Services.Email;
+using CaseShop.Web.Services.Payments;
+using CaseShop.Web.DTOs;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -65,6 +69,10 @@ builder.Services.AddAuthorization(options =>
 
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddMemoryCache();
+
+builder.Services.Configure<PayOsOptions>(builder.Configuration.GetSection(PayOsOptions.SectionName));
+builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection(SmtpOptions.SectionName));
 
 // Core Application Security (Rate limiting, Reverse proxy headers, Security headers)
 builder.Services.AddCaseShopSecurity(builder.Configuration);
@@ -83,6 +91,15 @@ builder.Services.AddScoped<IStickerService, StickerService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.AddScoped<ICartService, CartService>();
 builder.Services.AddScoped<IPhoneCatalogService, PhoneCatalogService>();
+builder.Services.AddScoped<IPayOsGateway, PayOsGateway>();
+builder.Services.AddScoped<IPaymentService, PaymentService>();
+builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
+builder.Services.AddScoped<IOrderConfirmationEmailService, OrderConfirmationEmailService>();
+builder.Services.AddHttpClient<IVietnamAddressService, VietnamAddressService>(client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["VietnamAddress:BaseUrl"] ?? "https://provinces.open-api.vn/api/v2/");
+    client.Timeout = TimeSpan.FromSeconds(10);
+});
 
 var app = builder.Build();
 
@@ -184,5 +201,26 @@ app.UseAntiforgery();
 app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
+
+app.MapGet("/api/addresses/provinces", async (IVietnamAddressService service, CancellationToken cancellationToken) =>
+    Results.Ok(await service.GetProvincesAsync(cancellationToken)));
+
+app.MapGet("/api/addresses/provinces/{provinceCode:int}/wards", async (
+    int provinceCode,
+    IVietnamAddressService service,
+    CancellationToken cancellationToken) => provinceCode <= 0
+        ? Results.BadRequest(new { message = "Mã Tỉnh/Thành phố không hợp lệ." })
+        : Results.Ok(await service.GetWardsAsync(provinceCode, cancellationToken)));
+
+app.MapPost("/api/payments/payos/webhook", async (
+    PayOsWebhookDto webhook,
+    IPaymentService paymentService,
+    CancellationToken cancellationToken) =>
+{
+    var result = await paymentService.ProcessPayOsWebhookAsync(webhook, cancellationToken);
+    return result.Accepted
+        ? Results.Ok(new { message = result.Message })
+        : Results.BadRequest(new { message = result.Message });
+}).DisableAntiforgery();
 
 app.Run();

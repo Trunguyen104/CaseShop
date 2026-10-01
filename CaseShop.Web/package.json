@@ -9,6 +9,7 @@
     "tailwindcss": "^3.4.1"
   },
   "dependencies": {
-    "cropperjs": "2.2.0"
+    "cropperjs": "2.2.0",
+    "qrcode-generator": "^2.0.4"
   }
 }

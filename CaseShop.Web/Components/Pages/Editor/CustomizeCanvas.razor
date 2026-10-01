@@ -32,21 +32,21 @@
         </div>
     </div>
     <div class="flex items-center gap-1.5 px-3 py-1.5 bg-surface-container-lowest/90 backdrop-blur-md rounded-full shadow-md z-30">
-        <button class="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container transition-colors"
+        <button class="w-10 h-10 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container transition-colors"
                 title="Thu nhỏ" @onclick="() => ChangeZoom(-10)" disabled="@(!EditorReady || Zoom <= 50)">
             <span class="material-symbols-outlined text-[18px]">zoom_out</span>
         </button>
         <span class="font-label-sm text-label-sm font-semibold px-2 text-on-surface">@Zoom%</span>
-        <button class="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container transition-colors"
+        <button class="w-10 h-10 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container transition-colors"
                 title="Phóng to" @onclick="() => ChangeZoom(10)" disabled="@(!EditorReady || Zoom >= 150)">
             <span class="material-symbols-outlined text-[18px]">zoom_in</span>
         </button>
         <div class="w-px h-4 bg-outline-variant mx-1"></div>
-        <button class="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container transition-colors"
+        <button class="w-10 h-10 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container transition-colors"
                 title="Căn giữa lớp đang chọn" @onclick="OnCenter" disabled="@(!EditorReady || PreviewMode)">
             <span class="material-symbols-outlined text-[18px]">align_horizontal_center</span>
         </button>
-        <button class="w-8 h-8 rounded-full flex items-center justify-center bg-surface-container text-primary transition-colors"
+        <button class="w-10 h-10 sm:w-8 sm:h-8 rounded-full flex items-center justify-center bg-surface-container text-primary transition-colors"
                 title="Bật/Tắt Lưới" @onclick="OnToggleGrid" disabled="@(!EditorReady)">
             <span class="material-symbols-outlined text-[18px]">grid_4x4</span>
         </button>

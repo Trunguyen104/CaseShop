@@ -12,9 +12,19 @@ public class OrderDetailDto
     public string Phone { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
     public string Address { get; set; } = string.Empty;
+    public int ProvinceCode { get; set; }
+    public string ProvinceName { get; set; } = string.Empty;
+    public int WardCode { get; set; }
+    public string WardName { get; set; } = string.Empty;
+    public string AddressLine { get; set; } = string.Empty;
     public PaymentMethodType PaymentMethod { get; set; }
+    public PaymentStatus PaymentStatus { get; set; }
     public OrderStatus Status { get; set; }
+    public decimal SubtotalAmount { get; set; }
+    public decimal ShippingFee { get; set; }
     public decimal TotalAmount { get; set; }
+    public PaymentInfoDto? Payment { get; set; }
+    public EmailDeliveryStatus ConfirmationEmailStatus { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
     public List<OrderItemDetailDto> Items { get; set; } = new();
