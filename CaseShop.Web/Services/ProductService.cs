@@ -24,6 +24,17 @@ public class ProductService : IProductService
         return products.Select(MapToDto).ToList();
     }
 
+    public async Task<IReadOnlyList<ProductDto>> GetLatestActiveProductsAsync(int count = 4, CancellationToken cancellationToken = default)
+    {
+        if (count is < 1 or > 20)
+        {
+            throw new ArgumentOutOfRangeException(nameof(count), "Số lượng sản phẩm mới phải từ 1 đến 20.");
+        }
+
+        var products = await _productRepository.GetLatestActiveAsync(count, cancellationToken);
+        return products.Select(MapToDto).ToList();
+    }
+
     public async Task<IReadOnlyList<ProductDto>> GetAllProductsAsync(CancellationToken cancellationToken = default)
     {
         var products = await _productRepository.GetAllAsync(activeOnly: false, cancellationToken);

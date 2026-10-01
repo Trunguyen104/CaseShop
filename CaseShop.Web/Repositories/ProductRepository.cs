@@ -30,6 +30,21 @@ public class ProductRepository : IProductRepository
         return await query.OrderByDescending(p => p.CreatedAt).ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<Product>> GetLatestActiveAsync(int count, CancellationToken cancellationToken = default)
+    {
+        if (count <= 0)
+        {
+            return Array.Empty<Product>();
+        }
+
+        return await _context.Products
+            .AsNoTracking()
+            .Where(product => product.IsActive)
+            .OrderByDescending(product => product.CreatedAt)
+            .Take(count)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<Product?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         return await _context.Products.AsNoTracking().FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
