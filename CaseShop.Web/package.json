@@ -2,9 +2,13 @@
   "name": "caseshop-web",
   "version": "1.0.0",
   "scripts": {
-    "build:css": "tailwindcss -i ./wwwroot/app.css -o ./wwwroot/app.min.css"
+    "build:vendor": "node ./scripts/copy-vendor.cjs",
+    "build:css": "npm run build:vendor && tailwindcss -i ./wwwroot/app.css -o ./wwwroot/app.min.css"
   },
   "devDependencies": {
     "tailwindcss": "^3.4.1"
+  },
+  "dependencies": {
+    "cropperjs": "2.2.0"
   }
 }

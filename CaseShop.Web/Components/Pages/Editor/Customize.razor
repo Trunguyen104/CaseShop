@@ -5,7 +5,6 @@
 @using Microsoft.AspNetCore.Components.Forms
 @inject IJSRuntime JS
 @inject IStickerService StickerService
-@inject IStorageService StorageService
 @inject IPhoneCatalogService CatalogService
 @inject ICartService CartService
 @inject IProductService ProductService
@@ -14,7 +13,7 @@
 
 <PageTitle>Thiết kế ốp lưng - CASESHOP</PageTitle>
 
-<div class="flex flex-col w-full min-w-0 select-none overflow-hidden">
+<div class="editor-studio-shell flex flex-col w-full min-w-0 select-none overflow-hidden bg-surface">
 
     @if (_exportErrorMessage is not null)
     {
@@ -80,6 +79,8 @@
             @if (!_previewMode)
             {
                 <CustomizeToolPanel EditorReady="_editorReady"
+                                    Class="@(_mobilePanel == MobilePanel.Tools ? "mobile-panel-open" : "")"
+                                    OnRequestClose="CloseMobilePanel"
                                     Stickers="_stickers"
                                     StickersLoading="_stickersLoading"
                                     StickersError="_stickersError"
@@ -103,9 +104,33 @@
 
             @if (!_previewMode)
             {
-                <CustomizePropertiesPanel EditorReady="_editorReady" />
+                <CustomizePropertiesPanel EditorReady="_editorReady"
+                                          Class="@(_mobilePanel == MobilePanel.Properties ? "mobile-panel-open" : "")"
+                                          OnRequestClose="CloseMobilePanel" />
             }
         </div>
+
+        @if (!_previewMode)
+        {
+            <nav class="mobile-editor-dock lg:hidden" aria-label="Công cụ thiết kế nhanh">
+                <button type="button" class="mobile-dock-action @(_mobilePanel == MobilePanel.Tools ? "is-active" : "")" @onclick="() => ToggleMobilePanel(MobilePanel.Tools)">
+                    <span class="material-symbols-outlined">add_circle</span>
+                    <span>Thêm</span>
+                </button>
+                <button type="button" class="mobile-dock-action @(_mobilePanel == MobilePanel.Properties ? "is-active" : "")" @onclick="() => ToggleMobilePanel(MobilePanel.Properties)">
+                    <span class="material-symbols-outlined">tune</span>
+                    <span>Lớp</span>
+                </button>
+                <button type="button" class="mobile-dock-action" disabled="@(!_editorReady)" @onclick="HandleTogglePreview">
+                    <span class="material-symbols-outlined">visibility</span>
+                    <span>Xem trước</span>
+                </button>
+                <button type="button" class="mobile-dock-cta" disabled="@(!_editorReady || _orderInProgress || _exportInProgress)" @onclick="HandleOrder">
+                    <span class="material-symbols-outlined">@(_orderInProgress ? "progress_activity" : "shopping_bag")</span>
+                    <span>@(_orderInProgress ? "Đang xử lý" : "Thêm vào giỏ")</span>
+                </button>
+            </nav>
+        }
     }
 </div>
 
@@ -121,6 +146,18 @@
     private bool _modelInvalidOrInactive = false;
 
     private int _zoom = 100;
+    private MobilePanel _mobilePanel = MobilePanel.None;
+
+    private enum MobilePanel { None, Tools, Properties }
+
+    private void ToggleMobilePanel(MobilePanel panel) =>
+        _mobilePanel = _mobilePanel == panel ? MobilePanel.None : panel;
+
+    private Task CloseMobilePanel()
+    {
+        _mobilePanel = MobilePanel.None;
+        return Task.CompletedTask;
+    }
 
     // -- Editor state --
     private bool _editorReady = false;
@@ -461,7 +498,7 @@
 
     // -- Handler: Upload Sticker --
 
-    private async Task HandleUploadSticker(IBrowserFile file)
+    private async Task HandleUploadSticker(EditorImageUpload file)
     {
         if (!_editorReady || _disposed || _previewMode || _uploadInProgress) return;
 
@@ -475,25 +512,19 @@
             var jsGeneration = await JS.InvokeAsync<int?>("CaseShopEditor.beginUpload");
             if (jsGeneration is null || !IsUploadCurrent(generation)) return;
 
-            if (!StorageService.IsValidImageFile(file.Name, file.ContentType, file.Size))
+            if (!IsValidTemporaryImage(file))
             {
                 _uploadErrorMessage = "File không hợp lệ. Chỉ chấp nhận JPG, PNG, WEBP và tối đa 5MB.";
                 return;
             }
 
-            const long maxStreamSize = 5 * 1024 * 1024;
-            await using var stream = file.OpenReadStream(maxStreamSize);
-
-            var (fileUrl, _) = await StorageService.UploadFileAsync(
-                stream,
-                file.Name,
-                file.ContentType,
-                "caseshop/custom-stickers");
-
-            if (!IsUploadCurrent(generation)) return;
+            // User uploads are temporary editor assets. Keep them entirely in the browser
+            // and never send them to storage/Cloudinary.
+            var mimeType = string.IsNullOrWhiteSpace(file.ContentType) ? "image/jpeg" : file.ContentType.ToLowerInvariant();
+            var dataUrl = $"data:{mimeType};base64,{Convert.ToBase64String(file.Bytes)}";
 
             var added = await JS.InvokeAsync<bool>("CaseShopEditor.addUploadedSticker",
-                fileUrl, "Uploaded sticker", jsGeneration.Value);
+                dataUrl, file.FileName, jsGeneration.Value);
             if (!added || !IsUploadCurrent(generation)) return;
 
             _uploadSuccess = true;
@@ -516,6 +547,15 @@
 
     private bool IsUploadCurrent(int generation) =>
         !_disposed && _editorReady && !_previewMode && generation == _uploadGeneration;
+
+    private static bool IsValidTemporaryImage(EditorImageUpload file)
+    {
+        if (file.Bytes.Length == 0 || file.Bytes.LongLength > 5 * 1024 * 1024) return false;
+        var contentType = file.ContentType?.ToLowerInvariant();
+        var extension = Path.GetExtension(file.FileName)?.ToLowerInvariant();
+        return contentType is "image/jpeg" or "image/png" or "image/webp"
+            && extension is ".jpg" or ".jpeg" or ".png" or ".webp";
+    }
 
     // -- Handler: Text --
 

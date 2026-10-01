@@ -1295,10 +1295,6 @@ main > :last-child {
   right: 1rem;
 }
 
-.right-6 {
-  right: 1.5rem;
-}
-
 .top-0 {
   top: 0px;
 }
@@ -1549,6 +1545,10 @@ main > :last-child {
 
 .aspect-square {
   aspect-ratio: 1 / 1;
+}
+
+.\!h-10 {
+  height: 2.5rem !important;
 }
 
 .h-0\.5 {
@@ -3401,6 +3401,10 @@ main > :last-child {
   text-transform: uppercase;
 }
 
+.italic {
+  font-style: italic;
+}
+
 .leading-none {
   line-height: 1;
 }
@@ -3952,19 +3956,9 @@ main > :last-child {
   border-color: rgb(0 0 0 / var(--tw-border-opacity, 1));
 }
 
-.hover\:bg-black:hover {
-  --tw-bg-opacity: 1;
-  background-color: rgb(0 0 0 / var(--tw-bg-opacity, 1));
-}
-
 .hover\:bg-emerald-100:hover {
   --tw-bg-opacity: 1;
   background-color: rgb(209 250 229 / var(--tw-bg-opacity, 1));
-}
-
-.hover\:bg-emerald-700:hover {
-  --tw-bg-opacity: 1;
-  background-color: rgb(4 120 87 / var(--tw-bg-opacity, 1));
 }
 
 .hover\:bg-error-container:hover {
@@ -4159,12 +4153,6 @@ main > :last-child {
 
 .focus\:ring-offset-2:focus {
   --tw-ring-offset-width: 2px;
-}
-
-.active\:scale-95:active {
-  --tw-scale-x: .95;
-  --tw-scale-y: .95;
-  transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
 }
 
 .disabled\:cursor-not-allowed:disabled {
@@ -4368,6 +4356,10 @@ main > :last-child {
     padding: 3.5rem;
   }
 
+  .sm\:p-4 {
+    padding: 1rem;
+  }
+
   .sm\:p-5 {
     padding: 1.25rem;
   }
@@ -4509,6 +4501,10 @@ main > :last-child {
     position: sticky;
   }
 
+  .lg\:right-6 {
+    right: 1.5rem;
+  }
+
   .lg\:top-20 {
     top: 5rem;
   }
@@ -4549,6 +4545,10 @@ main > :last-child {
     display: flex;
   }
 
+  .lg\:grid {
+    display: grid;
+  }
+
   .lg\:hidden {
     display: none;
   }
@@ -4585,6 +4585,10 @@ main > :last-child {
     grid-template-columns: 1.05fr 0.95fr;
   }
 
+  .lg\:grid-cols-\[auto_minmax\(18rem\2c 1fr\)_auto\] {
+    grid-template-columns: auto minmax(18rem,1fr) auto;
+  }
+
   .lg\:flex-row {
     flex-direction: row;
   }
@@ -4609,6 +4613,10 @@ main > :last-child {
     gap: 2rem;
   }
 
+  .lg\:justify-self-center {
+    justify-self: center;
+  }
+
   .lg\:p-12 {
     padding: 3rem;
   }
@@ -4630,9 +4638,9 @@ main > :last-child {
     padding-right: 3rem;
   }
 
-  .lg\:px-8 {
-    padding-left: 2rem;
-    padding-right: 2rem;
+  .lg\:px-6 {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
   }
 
   .lg\:px-margin {

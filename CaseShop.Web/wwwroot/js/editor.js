@@ -43,8 +43,12 @@ window.CaseShopEditor = (() => {
     const DEFAULT_TEXT_H    = 50;
 
     const HANDLE_SIZE    = 14;
-    const ROT_HANDLE_R   = 8;
+    const ACTION_HANDLE_R = 10;
+    const ROT_HANDLE_R   = ACTION_HANDLE_R;
     const ROT_HANDLE_OFF = 28;
+    const DELETE_HANDLE_R = ACTION_HANDLE_R;
+    const DELETE_HANDLE_OFF = 12;
+    const DELETE_HIT_RADIUS = 22;
 
     const COLOR_BG              = 'rgba(0, 0, 0, 0)';
     const COLOR_CASE_STROKE     = '#cbd5e1';
@@ -52,12 +56,18 @@ window.CaseShopEditor = (() => {
     const COLOR_SELECTION       = '#4f81f0';
     const COLOR_HANDLE_FILL     = '#ffffff';
     const COLOR_HANDLE_STROKE   = '#4f81f0';
-    const COLOR_ROT_HANDLE      = '#4f81f0';
+    const COLOR_ACTION_HANDLE   = COLOR_SELECTION;
     const COLOR_PLACEHOLDER_BG  = 'rgba(180,180,200,0.35)';
     const COLOR_PLACEHOLDER_FG  = 'rgba(120,120,150,0.7)';
 
     const MIN_W = 20;
     const MIN_H = 20;
+    const BACKGROUND_ID = '__background__';
+    const TEXT_FONTS = [
+        'Inter, sans-serif', 'Arial, sans-serif', 'Montserrat, sans-serif',
+        'Playfair Display, serif', 'Dancing Script, cursive', 'Bebas Neue, sans-serif',
+        'Georgia, serif', 'Courier New, monospace'
+    ];
 
     // -------------------------------------------------------------------------
     // Module-level variables
@@ -71,6 +81,7 @@ window.CaseShopEditor = (() => {
     let _designRevision = 0;
     let _observer = null;
     let _lastNotification = '';
+    let _imageCropper = null;
     let _history = [];
     let _historyIndex = -1;
     let _restoring = false;
@@ -225,7 +236,7 @@ window.CaseShopEditor = (() => {
         if (_canvas) {
             _canvas.width  = LOGICAL_WIDTH;
             _canvas.height = LOGICAL_HEIGHT;
-            if (_canvas.parentElement) {
+            if (_canvas.parentElement?.style) {
                 _canvas.parentElement.style.aspectRatio = `${LOGICAL_WIDTH} / ${LOGICAL_HEIGHT}`;
             }
         }
@@ -264,7 +275,7 @@ window.CaseShopEditor = (() => {
         _attachPointerListeners();
         _canvas.addEventListener('touchstart', _preventDefaultTouch, { passive: false });
 
-        window.addEventListener('beforeunload', () => {
+        window.addEventListener?.('beforeunload', () => {
             saveDraft();
         });
 
@@ -355,6 +366,18 @@ window.CaseShopEditor = (() => {
         };
     }
 
+    function _getBackgroundObject() {
+        const background = _state.background;
+        if (!background?.url || !Number.isFinite(background.x) || !Number.isFinite(background.y) ||
+            !Number.isFinite(background.width) || !Number.isFinite(background.height)) return null;
+        return background;
+    }
+
+    function _getEditableObject(id) {
+        if (!id) return null;
+        return id === BACKGROUND_ID ? _getBackgroundObject() : _state.elements.find(el => el.id === id) || null;
+    }
+
     // ---- pointerdown ----
 
     function _onPointerDown(e) {
@@ -362,14 +385,19 @@ window.CaseShopEditor = (() => {
         if (_state.previewMode) return; // No interaction in preview mode
 
         const lp  = _eventToLogical(e);
-        const sel = _state.selectedElementId
-            ? _state.elements.find(el => el.id === _state.selectedElementId)
-            : null;
+        const sel = _getEditableObject(_state.selectedElementId);
 
         // 1. Check handles on selected element first
-        if (sel && !sel.locked && !sel.hidden) {
+        if (sel && sel.type !== 'background' && !sel.locked && !sel.hidden) {
             const hit = _hitTestHandles(sel, lp.x, lp.y);
             if (hit) {
+                // Delete is an immediate action, never a drag interaction.
+                if (hit === 'delete') {
+                    e.preventDefault();
+                    if (_canvas?.style) _canvas.style.cursor = '';
+                    removeSelected();
+                    return;
+                }
                 _startInteraction(e, hit, sel.id, lp);
                 return;
             }
@@ -387,13 +415,21 @@ window.CaseShopEditor = (() => {
             }
         }
 
+        const background = _getBackgroundObject();
+        if (background && _hitTestElement(background, lp.x, lp.y)) {
+            _state.selectedElementId = BACKGROUND_ID;
+            _startInteraction(e, 'move', BACKGROUND_ID, lp);
+            render();
+            return;
+        }
+
         // 3. Click on empty space — deselect
         _state.selectedElementId = null;
         render();
     }
 
     function _startInteraction(e, handle, elementId, lp) {
-        const el = _state.elements.find(el => el.id === elementId);
+        const el = _getEditableObject(elementId);
         if (!el) return;
 
         _interaction.mode      = handle === 'move' ? 'move' : handle === 'rot' ? 'rotate' : 'resize';
@@ -413,20 +449,29 @@ window.CaseShopEditor = (() => {
     // ---- pointermove ----
 
     function _onPointerMove(e) {
-        if (_interaction.mode === null || e.pointerId !== _interaction.pointerId) return;
+        if (_interaction.mode === null) {
+            _updateHoverCursor(e);
+            return;
+        }
+        if (e.pointerId !== _interaction.pointerId) return;
         e.preventDefault();
 
         const lp   = _eventToLogical(e);
         const dx   = lp.x - _interaction.startLX;
         const dy   = lp.y - _interaction.startLY;
-        const el   = _state.elements.find(el => el.id === _interaction.elementId);
+        const el   = _getEditableObject(_interaction.elementId);
         if (!el) return;
 
         const snap = _interaction.startEl;
 
         if (_interaction.mode === 'move') {
-            el.x = _clamp(snap.x + dx, EDIT_X, EDIT_X + EDIT_W - el.width);
-            el.y = _clamp(snap.y + dy, EDIT_Y, EDIT_Y + EDIT_H - el.height);
+            if (el.type === 'background') {
+                el.x = _clamp(snap.x + dx, EDIT_X + EDIT_W - el.width, EDIT_X);
+                el.y = _clamp(snap.y + dy, EDIT_Y + EDIT_H - el.height, EDIT_Y);
+            } else {
+                el.x = _clamp(snap.x + dx, EDIT_X, EDIT_X + EDIT_W - el.width);
+                el.y = _clamp(snap.y + dy, EDIT_Y, EDIT_Y + EDIT_H - el.height);
+            }
         } else if (_interaction.mode === 'resize') {
             _applyResize(el, snap, _interaction.handle, dx, dy);
         } else if (_interaction.mode === 'rotate') {
@@ -455,7 +500,7 @@ window.CaseShopEditor = (() => {
 
     function _restoreInteraction() {
         if (_interaction.startEl && _interaction.elementId) {
-            const el = _state.elements.find(el => el.id === _interaction.elementId);
+            const el = _getEditableObject(_interaction.elementId);
             if (el) Object.assign(el, _interaction.startEl);
             // Preserve other edits (for example a completed upload) made during the drag.
             _state.dirty = _interaction.startDirty || _designRevision !== _interaction.startRevision;
@@ -479,6 +524,14 @@ window.CaseShopEditor = (() => {
         _interaction.startEl   = null;
         _interaction.startDirty = false;
         _interaction.startRevision = 0;
+    }
+
+    function _updateHoverCursor(e) {
+        if (!_canvas?.style || _state.previewMode) return;
+        const sel = _getEditableObject(_state.selectedElementId);
+        const lp = _eventToLogical(e);
+        _canvas.style.cursor = sel && sel.type !== 'background' && !sel.locked && !sel.hidden &&
+            _hitTestHandles(sel, lp.x, lp.y) === 'delete' ? 'pointer' : '';
     }
 
     // ---- Resize ----
@@ -566,18 +619,23 @@ window.CaseShopEditor = (() => {
         const handles   = _getHandles(el);
         const hitRadius = HANDLE_SIZE * 1.5;
 
+        // Check delete first so its mobile-friendly target wins over the nearby TL resize handle.
+        const dh = handles.delete;
+        const ddx = lx - dh.x, ddy = ly - dh.y;
+        if (Math.sqrt(ddx * ddx + ddy * ddy) <= DELETE_HIT_RADIUS) return 'delete';
+
         const rh  = handles.rot;
         const rdx = lx - rh.x, rdy = ly - rh.y;
-        if (Math.sqrt(rdx * rdx + rdy * rdy) <= ROT_HANDLE_R * 1.8) return 'rot';
+        if (Math.sqrt(rdx * rdx + rdy * rdy) <= DELETE_HIT_RADIUS) return 'rot';
 
         for (const [name, h] of Object.entries(handles)) {
-            if (name === 'rot') continue;
+            if (name === 'rot' || name === 'delete') continue;
             if (Math.abs(lx - h.x) <= hitRadius && Math.abs(ly - h.y) <= hitRadius) return name;
         }
         return null;
     }
 
-    /** Compute world positions of the 4 corner + 1 rotation handles. */
+    /** Compute world positions of the 4 corner, rotation, and delete handles. */
     function _getHandles(el) {
         const cx  = el.x + el.width  / 2;
         const cy  = el.y + el.height / 2;
@@ -593,6 +651,8 @@ window.CaseShopEditor = (() => {
             bl:  _r(-hw,  hh),
             br:  _r( hw,  hh),
             rot: _r(  0, -hh - ROT_HANDLE_OFF),
+            // Keep destructive action beside rotation, away from resize corners.
+            delete: _r(ROT_HANDLE_OFF, -hh - ROT_HANDLE_OFF),
         };
     }
 
@@ -716,7 +776,27 @@ window.CaseShopEditor = (() => {
                 optimizedUrl = await _compressDataUrlIfNeeded(optimizedUrl, 1200, 0.85);
             } catch (_) {}
         }
-        _state.background = { sourceType: 'url', url: optimizedUrl };
+        const dimensions = await _getImageDimensions(optimizedUrl);
+        const naturalWidth = dimensions?.width || EDIT_W;
+        const naturalHeight = dimensions?.height || EDIT_H;
+        const scale = Math.max(EDIT_W / naturalWidth, EDIT_H / naturalHeight);
+        const width = naturalWidth * scale;
+        const height = naturalHeight * scale;
+        _state.background = {
+            id: BACKGROUND_ID,
+            type: 'background',
+            sourceType: 'url',
+            url: optimizedUrl,
+            x: EDIT_X + (EDIT_W - width) / 2,
+            y: EDIT_Y + (EDIT_H - height) / 2,
+            width,
+            height,
+            rotation: 0,
+            opacity: 1,
+            locked: false,
+            hidden: false
+        };
+        _state.selectedElementId = BACKGROUND_ID;
         _state.dirty = true;
         _loadImage(optimizedUrl);
         render();
@@ -725,6 +805,7 @@ window.CaseShopEditor = (() => {
     function clearBackground() {
         _designRevision++;
         _state.background = null;
+        if (_state.selectedElementId === BACKGROUND_ID) _state.selectedElementId = null;
         _state.dirty = true;
         render();
     }
@@ -733,18 +814,29 @@ window.CaseShopEditor = (() => {
     // Add sticker
     // -------------------------------------------------------------------------
 
-    function addSticker(stickerId, imageUrl, name) {
+    async function addSticker(stickerId, imageUrl, name, expectedUploadGeneration = null) {
+        const dimensions = imageUrl ? await _getImageDimensions(imageUrl) : null;
+        if (expectedUploadGeneration !== null &&
+            (!_initialized || _state.previewMode || expectedUploadGeneration !== _uploadGeneration)) return false;
+        const naturalRatio = dimensions && dimensions.height > 0
+            ? dimensions.width / dimensions.height
+            : 1;
+        let stickerW = DEFAULT_STICKER_W;
+        let stickerH = DEFAULT_STICKER_H;
+        if (naturalRatio >= 1) stickerH = Math.max(MIN_H, stickerW / naturalRatio);
+        else stickerW = Math.max(MIN_W, stickerH * naturalRatio);
+
         _designRevision++;
         const runtimeId = _generateId();
         const offset    = _state._stickerOffset * 20;
         _state._stickerOffset = (_state._stickerOffset + 1) % 10;
 
-        const x = _clamp(EDIT_X + (EDIT_W - DEFAULT_STICKER_W) / 2 + offset, EDIT_X, EDIT_X + EDIT_W - DEFAULT_STICKER_W);
-        const y = _clamp(EDIT_Y + 140 + offset, EDIT_Y, EDIT_Y + EDIT_H - DEFAULT_STICKER_H);
+        const x = _clamp(EDIT_X + (EDIT_W - stickerW) / 2 + offset, EDIT_X, EDIT_X + EDIT_W - stickerW);
+        const y = _clamp(EDIT_Y + 140 + offset, EDIT_Y, EDIT_Y + EDIT_H - stickerH);
 
         _state.elements.push({
             id: runtimeId, type: 'sticker', x, y,
-            width: DEFAULT_STICKER_W, height: DEFAULT_STICKER_H, rotation: 0,
+            width: stickerW, height: stickerH, rotation: 0,
             zIndex: _state._nextZIndex++,
             data: { stickerId, imageUrl: imageUrl || '', name: name || '' },
         });
@@ -753,13 +845,14 @@ window.CaseShopEditor = (() => {
         _state.dirty = true;
         if (imageUrl) _loadImage(imageUrl);
         render();
+        return true;
     }
 
     // -------------------------------------------------------------------------
     // Add text
     // -------------------------------------------------------------------------
 
-    function addText(text) {
+    function addText(text, options = null) {
         const trimmed = (text || '').trim();
         if (!trimmed) return false;
         _designRevision++;
@@ -775,7 +868,17 @@ window.CaseShopEditor = (() => {
             id: runtimeId, type: 'text', x, y,
             width: DEFAULT_TEXT_W, height: DEFAULT_TEXT_H, rotation: 0,
             zIndex: _state._nextZIndex++,
-            data: { text: trimmed, fontSize: 48, fontFamily: 'Arial, sans-serif', fontWeight: '400', color: '#111111' },
+            data: {
+                text: trimmed,
+                fontSize: _clamp(Number(options?.fontSize) || 48, 8, 180),
+                fontFamily: TEXT_FONTS.includes(options?.fontFamily) ? options.fontFamily : 'Inter, sans-serif',
+                fontWeight: options?.bold ? '700' : '400',
+                fontStyle: options?.italic ? 'italic' : 'normal',
+                underline: !!options?.underline,
+                textAlign: ['left', 'center', 'right'].includes(options?.textAlign) ? options.textAlign : 'center',
+                letterSpacing: _clamp(Number(options?.letterSpacing) || 0, -2, 20),
+                color: /^#[0-9a-f]{6}$/i.test(options?.color) ? options.color : '#111111'
+            },
         });
 
         _state.selectedElementId = runtimeId;
@@ -789,10 +892,11 @@ window.CaseShopEditor = (() => {
     // -------------------------------------------------------------------------
 
     function removeSelected() {
-        if (!_state.selectedElementId || _state.previewMode || _state.elements.find(e => e.id === _state.selectedElementId)?.locked) return;
+        if (!_state.selectedElementId || _state.previewMode || _getEditableObject(_state.selectedElementId)?.locked) return;
         _designRevision++;
         if (_interaction.elementId === _state.selectedElementId) _clearInteraction();
-        _state.elements          = _state.elements.filter(el => el.id !== _state.selectedElementId);
+        if (_state.selectedElementId === BACKGROUND_ID) _state.background = null;
+        else _state.elements = _state.elements.filter(el => el.id !== _state.selectedElementId);
         _state.selectedElementId = null;
         _state.dirty             = true;
         render();
@@ -803,7 +907,9 @@ window.CaseShopEditor = (() => {
     // -------------------------------------------------------------------------
 
     function selectElement(elementId) {
-        _state.selectedElementId = _state.elements.some(el => el.id === elementId) ? elementId : null;
+        _state.selectedElementId = elementId === BACKGROUND_ID && _getBackgroundObject()
+            ? BACKGROUND_ID
+            : _state.elements.some(el => el.id === elementId) ? elementId : null;
         render();
     }
 
@@ -840,6 +946,177 @@ window.CaseShopEditor = (() => {
         _imageCache.set(url, img);
         img.src = url;
         return img;
+    }
+
+    function _getImageDimensions(url) {
+        const img = _loadImage(url);
+        if (!img || img === 'error') return Promise.resolve(null);
+        if (img.complete && img.naturalWidth > 0 && img.naturalHeight > 0) {
+            return Promise.resolve({ width: img.naturalWidth, height: img.naturalHeight });
+        }
+        if (typeof img.addEventListener !== 'function') return Promise.resolve(null);
+        return new Promise(resolve => {
+            const finish = value => {
+                img.removeEventListener('load', onLoad);
+                img.removeEventListener('error', onError);
+                resolve(value);
+            };
+            const onLoad = () => finish(img.naturalWidth > 0 && img.naturalHeight > 0
+                ? { width: img.naturalWidth, height: img.naturalHeight }
+                : null);
+            const onError = () => finish(null);
+            img.addEventListener('load', onLoad, { once: true });
+            img.addEventListener('error', onError, { once: true });
+        });
+    }
+
+    function getSelectedStickerForCrop() {
+        if (_state.previewMode) return null;
+        const el = _state.elements.find(item => item.id === _state.selectedElementId);
+        if (!el || el.type !== 'sticker' || el.locked || !el.data.imageUrl) return null;
+        return { id: el.id, imageUrl: el.data.imageUrl, name: el.data.name || 'Ảnh' };
+    }
+
+    async function applyCroppedSticker(elementId, imageUrl) {
+        if (_state.previewMode || typeof imageUrl !== 'string' || !imageUrl.startsWith('data:image/')) return false;
+        const dimensions = await _getImageDimensions(imageUrl);
+        const el = _state.elements.find(item => item.id === elementId);
+        if (!el || el.type !== 'sticker' || el.locked) return false;
+
+        const centerX = el.x + el.width / 2;
+        const centerY = el.y + el.height / 2;
+        const ratio = dimensions && dimensions.width > 0 && dimensions.height > 0
+            ? dimensions.width / dimensions.height
+            : Math.max(0.01, el.width / el.height);
+        const longestSide = Math.max(el.width, el.height);
+        let width = ratio >= 1 ? longestSide : longestSide * ratio;
+        let height = ratio >= 1 ? longestSide / ratio : longestSide;
+        const maxScale = Math.min(EDIT_W / width, EDIT_H / height);
+        const minScale = Math.max(MIN_W / width, MIN_H / height);
+        const scale = Math.min(maxScale, Math.max(minScale, Math.min(1, maxScale)));
+        width *= scale;
+        height *= scale;
+        el.width = width;
+        el.height = height;
+        el.x = _clamp(centerX - width / 2, EDIT_X, EDIT_X + EDIT_W - width);
+        el.y = _clamp(centerY - height / 2, EDIT_Y, EDIT_Y + EDIT_H - height);
+        el.data.imageUrl = imageUrl;
+        el.data.name = el.data.name || 'Ảnh đã cắt';
+        _state.selectedElementId = el.id;
+        _state.dirty = true;
+        _designRevision++;
+        _loadImage(imageUrl);
+        render();
+        return true;
+    }
+
+    function destroyImageCropper() {
+        if (!_imageCropper) return;
+        try { _imageCropper.destroy(); } catch (_) {}
+        _imageCropper = null;
+    }
+
+    function _resetImageCropSelection(cropperCanvas, cropperImage, cropperSelection, sourceImage) {
+        cropperImage.$center('cover');
+        const bounds = cropperCanvas.getBoundingClientRect();
+        const sourceWidth = sourceImage?.naturalWidth || 1;
+        const sourceHeight = sourceImage?.naturalHeight || 1;
+        const ratio = Math.max(0.01, sourceWidth / sourceHeight);
+        const maxWidth = Math.max(72, bounds.width * 0.78);
+        const maxHeight = Math.max(72, bounds.height * 0.78);
+        let width = maxWidth;
+        let height = width / ratio;
+        if (height > maxHeight) {
+            height = maxHeight;
+            width = height * ratio;
+        }
+        cropperSelection.$change(
+            (bounds.width - width) / 2,
+            (bounds.height - height) / 2,
+            width,
+            height
+        );
+    }
+
+    function initImageCropper(imageId, containerId, dialogId) {
+        destroyImageCropper();
+        const image = document.getElementById(imageId);
+        const container = document.getElementById(containerId);
+        const dialog = document.getElementById(dialogId);
+        const CropperClass = window.Cropper?.default;
+        if (!image || !container || !dialog || typeof CropperClass !== 'function') return false;
+
+        if (typeof dialog.showModal === 'function' && !dialog.open) dialog.showModal();
+
+        const template = `
+            <cropper-canvas background scale-step="0.08">
+                <cropper-image initial-fit="cover" rotatable scalable translatable></cropper-image>
+                <cropper-shade></cropper-shade>
+                <cropper-handle action="move" plain></cropper-handle>
+                <cropper-selection initial-coverage="0.78" movable resizable zoomable outlined keyboard>
+                    <cropper-grid role="grid" bordered covered></cropper-grid>
+                    <cropper-crosshair centered></cropper-crosshair>
+                    <cropper-handle action="move" theme-color="rgba(255,255,255,.28)"></cropper-handle>
+                    <cropper-handle action="n-resize"></cropper-handle>
+                    <cropper-handle action="e-resize"></cropper-handle>
+                    <cropper-handle action="s-resize"></cropper-handle>
+                    <cropper-handle action="w-resize"></cropper-handle>
+                    <cropper-handle action="ne-resize"></cropper-handle>
+                    <cropper-handle action="nw-resize"></cropper-handle>
+                    <cropper-handle action="se-resize"></cropper-handle>
+                    <cropper-handle action="sw-resize"></cropper-handle>
+                </cropper-selection>
+            </cropper-canvas>`;
+        _imageCropper = new CropperClass(image, { container, template });
+        const cropperCanvas = _imageCropper.getCropperCanvas();
+        const cropperImage = _imageCropper.getCropperImage();
+        const cropperSelection = _imageCropper.getCropperSelection();
+        if (!cropperCanvas || !cropperImage || !cropperSelection) {
+            destroyImageCropper();
+            return false;
+        }
+        cropperCanvas.style.width = '100%';
+        cropperCanvas.style.height = '100%';
+        cropperCanvas.style.display = 'block';
+        cropperSelection.style.minWidth = '72px';
+        cropperSelection.style.minHeight = '72px';
+        cropperImage.$ready(() => {
+            if (_imageCropper?.getCropperImage() !== cropperImage) return;
+            _resetImageCropSelection(cropperCanvas, cropperImage, cropperSelection, image);
+        });
+        return true;
+    }
+
+    function transformImageCropper(action) {
+        if (!_imageCropper) return false;
+        const image = _imageCropper.getCropperImage();
+        const selection = _imageCropper.getCropperSelection();
+        if (!image || !selection) return false;
+        if (action === 'rotateLeft') image.$rotate('-90deg');
+        else if (action === 'rotateRight') image.$rotate('90deg');
+        else if (action === 'zoomIn') image.$scale(1.1);
+        else if (action === 'zoomOut') image.$scale(0.9);
+        else if (action === 'reset') {
+            image.$resetTransform();
+            selection.$reset();
+            const canvas = _imageCropper.getCropperCanvas();
+            const sourceImage = image.$image;
+            if (canvas) _resetImageCropSelection(canvas, image, selection, sourceImage);
+        }
+        else return false;
+        return true;
+    }
+
+    async function exportImageCropper() {
+        if (!_imageCropper) throw new Error('Cropper is not initialized.');
+        const selection = _imageCropper.getCropperSelection();
+        if (!selection) throw new Error('Crop selection is unavailable.');
+        const ratio = selection.width > 0 && selection.height > 0 ? selection.width / selection.height : 1;
+        const outputSize = ratio >= 1
+            ? { width: 1024, height: Math.max(1, Math.round(1024 / ratio)) }
+            : { width: Math.max(1, Math.round(1024 * ratio)), height: 1024 };
+        const canvas = await selection.$toCanvas(outputSize);
+        return canvas.toDataURL('image/png');
     }
 
     function _getReadyImage(url) {
@@ -930,8 +1207,17 @@ window.CaseShopEditor = (() => {
 
         // 6. Selection handles
         if (includeEditorGuides && state.selectedElementId) {
-            const sel = state.elements.find(e => e.id === state.selectedElementId);
-            if (sel && !sel.hidden && !sel.locked) _drawSelectionOverlay(ctx, sel);
+            const sel = state.selectedElementId === BACKGROUND_ID ? _getBackgroundObject() : state.elements.find(e => e.id === state.selectedElementId);
+            if (sel?.type === 'background') {
+                ctx.save();
+                ctx.strokeStyle = COLOR_SELECTION;
+                ctx.lineWidth = 2;
+                ctx.setLineDash([7, 5]);
+                ctx.strokeRect(EDIT_X + 2, EDIT_Y + 2, EDIT_W - 4, EDIT_H - 4);
+                ctx.restore();
+            } else if (sel && !sel.hidden && !sel.locked) {
+                _drawSelectionOverlay(ctx, sel);
+            }
         }
     }
 
@@ -976,9 +1262,15 @@ window.CaseShopEditor = (() => {
         _roundRect(ctx, EDIT_X, EDIT_Y, EDIT_W, EDIT_H, EDIT_R);
         ctx.clip();
         if (img) {
-            const scale = Math.max(EDIT_W / img.naturalWidth, EDIT_H / img.naturalHeight);
-            const dw = img.naturalWidth * scale, dh = img.naturalHeight * scale;
-            ctx.drawImage(img, EDIT_X + (EDIT_W - dw) / 2, EDIT_Y + (EDIT_H - dh) / 2, dw, dh);
+            const hasGeometry = Number.isFinite(background.x) && Number.isFinite(background.y) &&
+                Number.isFinite(background.width) && Number.isFinite(background.height);
+            if (hasGeometry) {
+                ctx.drawImage(img, background.x, background.y, background.width, background.height);
+            } else {
+                const scale = Math.max(EDIT_W / img.naturalWidth, EDIT_H / img.naturalHeight);
+                const dw = img.naturalWidth * scale, dh = img.naturalHeight * scale;
+                ctx.drawImage(img, EDIT_X + (EDIT_W - dw) / 2, EDIT_Y + (EDIT_H - dh) / 2, dw, dh);
+            }
         } else if (includeEditorGuides) {
             ctx.fillStyle = 'rgba(220,225,235,0.6)'; ctx.fillRect(EDIT_X, EDIT_Y, EDIT_W, EDIT_H);
             ctx.font = '16px system-ui, sans-serif'; ctx.fillStyle = COLOR_PLACEHOLDER_FG;
@@ -1028,13 +1320,33 @@ window.CaseShopEditor = (() => {
         ctx.translate(cx, cy);
         ctx.rotate(rotation * Math.PI / 180);
         ctx.beginPath(); ctx.rect(-width/2,-height/2,width,height); ctx.clip();
-        ctx.font = `${data.fontWeight||'400'} ${data.fontSize||48}px ${data.fontFamily||'Arial, sans-serif'}`;
-        const measuredWidth = ctx.measureText(data.text || '')?.width || 1;
+        const text = data.text || '';
+        const fontStyle = data.fontStyle || 'normal';
+        const fontFamily = data.fontFamily || 'Inter, sans-serif';
+        const letterSpacing = Number(data.letterSpacing) || 0;
+        ctx.font = `${fontStyle} ${data.fontWeight||'400'} ${data.fontSize||48}px ${fontFamily}`;
+        const measuredWidth = (ctx.measureText(text)?.width || 1) + Math.max(0, text.length - 1) * letterSpacing;
         const fittedSize = Math.min(data.fontSize || 48, height * .8, (data.fontSize || 48) * Math.max(1, width - 8) / measuredWidth);
-        ctx.font = `${data.fontWeight||'400'} ${fittedSize}px ${data.fontFamily||'Arial, sans-serif'}`;
+        const fittedSpacing = letterSpacing * fittedSize / (data.fontSize || 48);
+        ctx.font = `${fontStyle} ${data.fontWeight||'400'} ${fittedSize}px ${fontFamily}`;
         ctx.fillStyle = data.color || '#111111';
-        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText(data.text || '', 0, 0);
+        ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+        const textWidth = (ctx.measureText(text)?.width || 0) + Math.max(0, text.length - 1) * fittedSpacing;
+        const alignment = data.textAlign || 'center';
+        const startX = alignment === 'left' ? -width / 2 + 4 : alignment === 'right' ? width / 2 - 4 - textWidth : -textWidth / 2;
+        let cursorX = startX;
+        for (const character of text) {
+            ctx.fillText(character, cursorX, 0);
+            cursorX += (ctx.measureText(character)?.width || 0) + fittedSpacing;
+        }
+        if (data.underline && textWidth > 0) {
+            ctx.beginPath();
+            ctx.moveTo(startX, fittedSize * 0.38);
+            ctx.lineTo(startX + textWidth, fittedSize * 0.38);
+            ctx.strokeStyle = data.color || '#111111';
+            ctx.lineWidth = Math.max(1, fittedSize / 18);
+            ctx.stroke();
+        }
         ctx.restore();
     }
 
@@ -1450,7 +1762,7 @@ window.CaseShopEditor = (() => {
 
         // Corner handles
         for (const [name, h] of Object.entries(handles)) {
-            if (name === 'rot') continue;
+            if (name === 'rot' || name === 'delete') continue;
             ctx.save();
             ctx.fillStyle = COLOR_HANDLE_FILL; ctx.strokeStyle = COLOR_HANDLE_STROKE; ctx.lineWidth = 2;
             ctx.fillRect(h.x - HANDLE_SIZE/2, h.y - HANDLE_SIZE/2, HANDLE_SIZE, HANDLE_SIZE);
@@ -1461,9 +1773,39 @@ window.CaseShopEditor = (() => {
         // Rotation handle
         const rh = handles.rot;
         ctx.save();
+        ctx.shadowColor = 'rgba(15, 23, 42, 0.25)'; ctx.shadowBlur = 4; ctx.shadowOffsetY = 1;
         ctx.beginPath(); ctx.arc(rh.x, rh.y, ROT_HANDLE_R, 0, Math.PI * 2);
-        ctx.fillStyle = COLOR_ROT_HANDLE; ctx.fill();
-        ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.stroke();
+        ctx.fillStyle = '#ffffff'; ctx.fill();
+        ctx.shadowColor = 'transparent';
+        ctx.strokeStyle = COLOR_ACTION_HANDLE; ctx.lineWidth = 2; ctx.stroke();
+        // Circular-arrow glyph matches the selection frame and delete handle.
+        const iconRadius = Math.max(3, ROT_HANDLE_R - 4);
+        const arrowEnd = Math.PI * 0.15;
+        ctx.beginPath();
+        ctx.arc(rh.x, rh.y, iconRadius, Math.PI * 0.35, Math.PI * 1.95);
+        ctx.strokeStyle = COLOR_ACTION_HANDLE; ctx.lineWidth = 1.6; ctx.lineCap = 'round'; ctx.stroke();
+        const tipX = rh.x + Math.cos(arrowEnd) * iconRadius;
+        const tipY = rh.y + Math.sin(arrowEnd) * iconRadius;
+        ctx.beginPath();
+        ctx.moveTo(tipX - 3.2, tipY - 2.8);
+        ctx.lineTo(tipX, tipY);
+        ctx.lineTo(tipX - 1.2, tipY + 3.6);
+        ctx.stroke();
+        ctx.restore();
+
+        // Delete handle: white circle with selection-blue border and X.
+        const dh = handles.delete;
+        ctx.save();
+        ctx.shadowColor = 'rgba(15, 23, 42, 0.25)'; ctx.shadowBlur = 4; ctx.shadowOffsetY = 1;
+        ctx.beginPath(); ctx.arc(dh.x, dh.y, DELETE_HANDLE_R, 0, Math.PI * 2);
+        ctx.fillStyle = '#ffffff'; ctx.fill();
+        ctx.shadowColor = 'transparent';
+        ctx.strokeStyle = COLOR_ACTION_HANDLE; ctx.lineWidth = 2; ctx.stroke();
+        const cross = 3.5;
+        ctx.beginPath();
+        ctx.moveTo(dh.x - cross, dh.y - cross); ctx.lineTo(dh.x + cross, dh.y + cross);
+        ctx.moveTo(dh.x + cross, dh.y - cross); ctx.lineTo(dh.x - cross, dh.y + cross);
+        ctx.strokeStyle = COLOR_ACTION_HANDLE; ctx.lineWidth = 2; ctx.stroke();
         ctx.restore();
     }
 
@@ -1814,11 +2156,11 @@ window.CaseShopEditor = (() => {
         return _initialized && !_state.previewMode ? ++_uploadGeneration : null;
     }
 
-    function addUploadedSticker(imageUrl, name, generation) {
+    async function addUploadedSticker(imageUrl, name, generation) {
         if (!_initialized || _state.previewMode || generation !== _uploadGeneration || !imageUrl) return false;
+        const added = await addSticker(null, imageUrl, name || 'Uploaded sticker', generation);
+        if (!added || !_initialized || _state.previewMode || generation !== _uploadGeneration) return false;
         _uploadGeneration++; // Consume the token so duplicate completions cannot add twice.
-        // Reuse the existing addSticker path with stickerId = null
-        addSticker(null, imageUrl, name || 'Uploaded sticker');
         return true;
     }
 
@@ -1826,15 +2168,28 @@ window.CaseShopEditor = (() => {
     // -------------------------------------------------------------------------
     // UI-only editing commands. History and selection stay in browser memory.
     function getState() {
+        const elements = _state.elements.slice().sort((a, b) => b.zIndex - a.zIndex).map(el => ({
+            id: el.id, type: el.type, name: el.type === 'text' ? el.data.text : el.data.name,
+            x: Math.round(el.x), y: Math.round(el.y), width: Math.round(el.width), height: Math.round(el.height),
+            rotation: Math.round(el.rotation), opacity: Math.round((el.opacity ?? 1) * 100),
+            hidden: !!el.hidden, locked: !!el.locked, color: el.data.color || '#111111',
+            fontSize: el.data.fontSize || 48, fontFamily: el.data.fontFamily || 'Inter, sans-serif',
+            bold: el.data.fontWeight === '700', italic: el.data.fontStyle === 'italic',
+            underline: !!el.data.underline, textAlign: el.data.textAlign || 'center',
+            letterSpacing: Number(el.data.letterSpacing) || 0
+        }));
+        const background = _getBackgroundObject();
+        if (background) {
+            elements.push({
+                id: BACKGROUND_ID, type: 'background', name: 'Ảnh nền',
+                x: Math.round(background.x), y: Math.round(background.y),
+                width: Math.round(background.width), height: Math.round(background.height),
+                rotation: 0, opacity: 100, hidden: false, locked: false,
+                color: '#111111', fontSize: 0, fontFamily: '', bold: false
+            });
+        }
         return {
-            elements: _state.elements.slice().sort((a, b) => b.zIndex - a.zIndex).map(el => ({
-                id: el.id, type: el.type, name: el.type === 'text' ? el.data.text : el.data.name,
-                x: Math.round(el.x), y: Math.round(el.y), width: Math.round(el.width), height: Math.round(el.height),
-                rotation: Math.round(el.rotation), opacity: Math.round((el.opacity ?? 1) * 100),
-                hidden: !!el.hidden, locked: !!el.locked, color: el.data.color || '#111111',
-                fontSize: el.data.fontSize || 48, fontFamily: el.data.fontFamily || 'Arial, sans-serif',
-                bold: el.data.fontWeight === '700'
-            })),
+            elements,
             selectedId: _state.selectedElementId, canUndo: _historyIndex > 0,
             canRedo: _historyIndex < _history.length - 1, grid: _showGrid
         };
@@ -1860,9 +2215,19 @@ window.CaseShopEditor = (() => {
         if (action === 'backgroundColor' && /^#[0-9a-f]{6}$/i.test(value)) {
             _state.background = { color: value }; _state.dirty = true; _designRevision++; render(); return;
         }
-        const el = _state.elements.find(item => item.id === (id || _state.selectedElementId));
+        const el = _getEditableObject(id || _state.selectedElementId);
         if (!el) return;
         if (action === 'select') { selectElement(el.id); return; }
+        if (el.type === 'background') {
+            if (action === 'delete') {
+                _state.background = null;
+                _state.selectedElementId = null;
+            } else if (action === 'center') {
+                el.x = EDIT_X + (EDIT_W - el.width) / 2;
+                el.y = EDIT_Y + (EDIT_H - el.height) / 2;
+            } else return;
+            _designRevision++; _state.dirty = true; render(); return;
+        }
         if (action === 'lock') el.locked = !el.locked;
         else if (el.locked) return;
         else if (action === 'visibility') el.hidden = !el.hidden;
@@ -1880,12 +2245,16 @@ window.CaseShopEditor = (() => {
         } else if (action === 'text' && el.type === 'text' && String(value).trim()) el.data.text = String(value).trim().slice(0, 100);
         else if (action === 'color' && /^#[0-9a-f]{6}$/i.test(value)) el.data.color = value;
         else if (action === 'bold') el.data.fontWeight = el.data.fontWeight === '700' ? '400' : '700';
-        else if (action === 'fontFamily' && ['Arial, sans-serif', 'Georgia, serif', 'Courier New, monospace'].includes(value)) el.data.fontFamily = value;
+        else if (action === 'italic') el.data.fontStyle = el.data.fontStyle === 'italic' ? 'normal' : 'italic';
+        else if (action === 'underline') el.data.underline = !el.data.underline;
+        else if (action === 'textAlign' && ['left', 'center', 'right'].includes(value)) el.data.textAlign = value;
+        else if (action === 'fontFamily' && TEXT_FONTS.includes(value)) el.data.fontFamily = value;
         else {
             const number = Number(value); if (!Number.isFinite(number)) return;
             if (action === 'opacity') el.opacity = _clamp(number, 0, 100) / 100;
             else if (action === 'rotation') el.rotation = _clamp(number, -180, 180);
             else if (action === 'fontSize') el.data.fontSize = _clamp(number, 8, 180);
+            else if (action === 'letterSpacing') el.data.letterSpacing = _clamp(number, -2, 20);
             else if (action === 'x') el.x = _clamp(number, EDIT_X, EDIT_X + EDIT_W - el.width);
             else if (action === 'y') el.y = _clamp(number, EDIT_Y, EDIT_Y + EDIT_H - el.height);
             else if (action === 'width') {
@@ -1996,7 +2365,9 @@ window.CaseShopEditor = (() => {
     return {
         init, setPhoneModel, render, reset, dispose, toLogical,
         setBackground, clearBackground,
-        addSticker, beginUpload, addUploadedSticker, addText, removeSelected,
+        addSticker, beginUpload, addUploadedSticker, getSelectedStickerForCrop, applyCroppedSticker,
+        initImageCropper, transformImageCropper, exportImageCropper, destroyImageCropper,
+        addText, removeSelected,
         selectElement, getSelectedElementId,
         setPreviewMode, isPreviewMode,
         exportDesign, getDesignSnapshot, observe, getState, command,

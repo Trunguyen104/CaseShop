@@ -4,7 +4,17 @@
 @using Microsoft.AspNetCore.Components.Forms
 @inject IStorageService StorageService
 
-<aside class="studio-panel lg:col-span-3 h-full flex flex-col bg-surface-container-lowest border-r border-outline-variant z-10 overflow-hidden" aria-label="Công cụ chỉnh sửa">
+<aside class="studio-panel studio-tool-panel @Class lg:col-span-3 h-full flex flex-col bg-surface-container-lowest border-r border-outline-variant z-10 overflow-hidden" aria-label="Công cụ chỉnh sửa">
+    <div class="mobile-sheet-handle lg:hidden" aria-hidden="true"></div>
+    <div class="flex items-center justify-between px-4 pt-3 lg:hidden">
+        <div>
+            <p class="font-headline-sm text-headline-sm font-semibold text-on-surface">Thêm vào thiết kế</p>
+            <p class="font-body-sm text-body-sm text-on-surface-variant">Sticker, ảnh, chữ và màu nền</p>
+        </div>
+        <button type="button" class="mobile-sheet-close" @onclick="OnRequestClose" aria-label="Đóng bảng công cụ">
+            <span class="material-symbols-outlined">close</span>
+        </button>
+    </div>
     <div class="flex items-center p-2 bg-surface-container-low gap-1 overflow-x-auto border-b border-outline-variant">
         <button class="@(_activeTab == "sticker" ? "bg-primary text-on-primary shadow-sm" : "text-on-surface-variant hover:bg-surface") flex-1 py-2 px-1 text-center rounded-md font-label-sm text-label-sm font-medium transition-all"
                 @onclick='() => _activeTab = "sticker"'>Sticker</button>
@@ -61,23 +71,23 @@
                 @if (UploadSuccess)
                 {
                     <p class="mt-2 font-body-sm text-body-sm text-primary flex items-center gap-1.5" role="status">
-                        <span class="material-symbols-outlined text-[16px]">check_circle</span> Tải lên thành công!
+                        <span class="material-symbols-outlined text-[16px]">check_circle</span> Đã thêm ảnh vào canvas!
                     </p>
                 }
                 <button id="btn-upload-sticker"
                         class="mt-3 w-full py-2.5 rounded-lg bg-primary text-on-primary hover:bg-neutral-800 font-label-md text-label-md font-semibold transition-colors flex items-center justify-center gap-1.5 shadow-sm"
                         @onclick="HandleUploadSticker"
                         disabled="@(!EditorReady || _selectedUploadFile == null || UploadInProgress)"
-                        aria-label="Tải lên và thêm sticker vào canvas">
+                        aria-label="Thêm ảnh tạm vào canvas">
                     @if (UploadInProgress)
                     {
                         <span class="material-symbols-outlined text-[18px] animate-spin">progress_activity</span>
-                        <span>Đang tải lên...</span>
+                        <span>Đang thêm ảnh...</span>
                     }
                     else
                     {
                         <span class="material-symbols-outlined text-[18px]">upload</span>
-                        <span>Tải lên và thêm vào canvas</span>
+                        <span>Thêm tạm vào canvas</span>
                     }
                 </button>
             </div>
@@ -187,11 +197,13 @@
 
 @code {
     [Parameter] public bool EditorReady { get; set; }
+    [Parameter] public string Class { get; set; } = string.Empty;
+    [Parameter] public EventCallback OnRequestClose { get; set; }
     [Parameter] public IReadOnlyList<StickerDto>? Stickers { get; set; }
     [Parameter] public bool StickersLoading { get; set; }
     [Parameter] public bool StickersError { get; set; }
     [Parameter] public EventCallback<StickerDto> OnAddSticker { get; set; }
-    [Parameter] public EventCallback<IBrowserFile> OnUploadSticker { get; set; }
+    [Parameter] public EventCallback<EditorImageUpload> OnUploadSticker { get; set; }
     [Parameter] public bool UploadInProgress { get; set; }
     [Parameter] public string? UploadErrorMessage { get; set; }
     [Parameter] public bool UploadSuccess { get; set; }
@@ -215,6 +227,7 @@
     private IBrowserFile? _selectedUploadFile;
     private string? _uploadFileInfo;
     private string? _localUploadError;
+    private byte[]? _uploadBytes;
 
     private string? EffectiveUploadErrorMessage => _localUploadError ?? UploadErrorMessage;
 
@@ -252,7 +265,7 @@
         }
     }
 
-    private void HandleUploadFileSelected(InputFileChangeEventArgs e)
+    private async Task HandleUploadFileSelected(InputFileChangeEventArgs e)
     {
         _localUploadError = null;
         var file = e.File;
@@ -260,6 +273,7 @@
         {
             _selectedUploadFile = null;
             _uploadFileInfo = null;
+            _uploadBytes = null;
             return;
         }
 
@@ -268,10 +282,15 @@
             _localUploadError = "File không hợp lệ. Chỉ chấp nhận JPG, PNG, WEBP và tối đa 5MB.";
             _selectedUploadFile = null;
             _uploadFileInfo = null;
+            _uploadBytes = null;
             return;
         }
 
         _selectedUploadFile = file;
+        await using var stream = file.OpenReadStream(5 * 1024 * 1024);
+        using var ms = new MemoryStream();
+        await stream.CopyToAsync(ms);
+        _uploadBytes = ms.ToArray();
         var sizeKb = file.Size / 1024.0;
         var sizeDisplay = sizeKb >= 1024 ? $"{sizeKb / 1024:F1} MB" : $"{sizeKb:F0} KB";
         _uploadFileInfo = $"{file.Name} ({sizeDisplay})";
@@ -279,12 +298,13 @@
 
     private async Task HandleUploadSticker()
     {
-        if (_selectedUploadFile == null || UploadInProgress) return;
-        await OnUploadSticker.InvokeAsync(_selectedUploadFile);
+        if (_selectedUploadFile == null || _uploadBytes == null || UploadInProgress) return;
+        await OnUploadSticker.InvokeAsync(new EditorImageUpload(_uploadBytes, _selectedUploadFile.Name, _selectedUploadFile.ContentType));
         if (UploadSuccess)
         {
             _selectedUploadFile = null;
             _uploadFileInfo = null;
+            _uploadBytes = null;
         }
     }
 
@@ -329,6 +349,7 @@
             _bgErrorMessage = "URL phải bắt đầu bằng http:// hoặc https://";
             return;
         }
+        _bgFileName = null;
         await OnSetBackground.InvokeAsync(url);
     }
 
@@ -339,4 +360,5 @@
         _bgErrorMessage = null;
         await OnClearBackground.InvokeAsync();
     }
+
 }

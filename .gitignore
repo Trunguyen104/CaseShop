@@ -27,3 +27,4 @@ Thumbs.db
 .ai/
 *.md
 DEPLOYMENT_AWS_EC2.md
+.agent

@@ -1,5 +1,7 @@
 .studio-action { padding: .4rem .65rem; background: #eee; border-radius: .5rem; font-size: .8rem; }
 .studio-action:hover { background: #ddd; }
+.studio-action-primary { display: inline-flex; align-items: center; gap: .35rem; background: #111; color: #fff; }
+.studio-action-primary:hover { background: #333; }
 button:disabled, fieldset:disabled { opacity: .5; }
 button:disabled { cursor: not-allowed; }
 .studio-label { display: flex; flex-direction: column; gap: .4rem; font-size: .85rem; }

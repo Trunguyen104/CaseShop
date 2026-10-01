@@ -38,13 +38,14 @@ function setupTest(config) {
         console,
         Image: class { set src(v) {} },
         setTimeout,
-        clearTimeout
+        clearTimeout,
+        localStorage: { getItem: () => null, setItem() {}, removeItem() {}, key: () => null, get length() { return 0; } }
     };
 
     avm.runInNewContext(
         source.replace(
-            'init, render, reset, dispose, toLogical,',
-            '_s:_state, _p:_physical, init, render, reset, dispose, toLogical,'
+            'init, setPhoneModel, render, reset, dispose, toLogical,',
+            '_s:_state, _p:_physical, init, setPhoneModel, render, reset, dispose, toLogical,'
         ),
         s
     );
@@ -75,7 +76,7 @@ const config = {
 };
 
 const test1 = setupTest(config);
-assert.equal(test1.ok, true, 'Editor should initialize successfully');
+assert.equal(test1.ok.success, true, 'Editor should initialize successfully');
 assert.equal(test1.api._p.cameraCutoutX, 20);
 assert.equal(test1.api._p.cameraCutoutY, 25);
 assert.equal(test1.api._p.cameraCutoutWidth, 100);

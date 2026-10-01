@@ -1,7 +1,7 @@
 @namespace CaseShop.Web.Components.Pages.Editor
 @using CaseShop.Web.DTOs
 
-<div class="w-full bg-surface-container-lowest px-3 lg:px-8 py-2.5 sm:py-3 border-b border-outline-variant flex flex-wrap items-center justify-between gap-3 z-30 relative">
+<div class="w-full bg-surface-container-lowest px-3 lg:px-6 py-2.5 sm:py-3 border-b border-outline-variant flex flex-wrap lg:grid lg:grid-cols-[auto_minmax(18rem,1fr)_auto] items-center justify-between gap-3 z-30 relative">
     <div class="flex items-center gap-2 sm:gap-3 w-full sm:w-auto justify-between sm:justify-start">
         <a class="flex items-center gap-1.5 text-on-surface-variant hover:text-on-surface transition-colors font-label-md text-label-md" href="/customize/select">
             <span class="material-symbols-outlined text-[18px]">arrow_back</span>
@@ -24,7 +24,7 @@
     </div>
 
     <!-- Desktop / Tablet Interactive Model Switcher Dropdown -->
-    <div class="relative hidden sm:block">
+    <div class="relative hidden sm:block lg:justify-self-center">
         <button type="button"
                 @onclick="ToggleDropdown"
                 class="flex items-center gap-2.5 px-3.5 py-1.5 bg-surface-container-low hover:bg-surface-container border border-outline-variant/60 rounded-xl transition-all shadow-sm cursor-pointer group text-left"

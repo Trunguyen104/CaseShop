@@ -3,15 +3,16 @@ const vm = require('node:vm');
 const assert = require('node:assert/strict');
 const handlers = new Map();
 const ctx = new Proxy({}, { get: (o, k) => o[k] || (() => {}) });
-const canvas = { parentElement: {}, getContext: () => ctx,
+const canvas = { parentElement: { style: {} }, style: {}, getContext: () => ctx,
     getBoundingClientRect: () => ({ left: 0, top: 0, width: 600, height: 1000 }),
     addEventListener: (k, v) => handlers.set(k, v), removeEventListener: k => handlers.delete(k),
     setPointerCapture() {}, releasePointerCapture() {} };
-const sandbox = { window: {}, document: { getElementById: () => canvas },
-    ResizeObserver: class { observe() {} disconnect() {} }, Image: class {}, console };
+const sandbox = { window: { addEventListener() {} }, document: { getElementById: () => canvas },
+    ResizeObserver: class { observe() {} disconnect() {} }, Image: class {}, console, setTimeout, clearTimeout,
+    localStorage: { getItem: () => null, setItem() {}, removeItem() {}, key: () => null, get length() { return 0; } } };
 vm.runInNewContext(fs.readFileSync('CaseShop.Web/wwwroot/js/editor.js', 'utf8'), sandbox);
 const editor = sandbox.window.CaseShopEditor;
-editor.init('canvas');
+editor.init('canvas', { canvasWidth: 600, canvasHeight: 1000, printAreaX: 34, printAreaY: 94, printAreaWidth: 532, printAreaHeight: 852 });
 assert.equal(editor.getState().canUndo, false);
 editor.addText('Initial');
 const id = editor.getState().selectedId;
@@ -24,6 +25,17 @@ assert.equal(editor.getState().elements[0].name, 'Initial');
 editor.command('redo');
 assert.equal(editor.getState().elements[0].name, 'Edited');
 editor.command('select', null, id);
+editor.command('fontFamily', 'Playfair Display, serif');
+editor.command('italic');
+editor.command('underline');
+editor.command('textAlign', 'right');
+editor.command('letterSpacing', '4.5');
+const typography = editor.getState().elements[0];
+assert.equal(typography.fontFamily, 'Playfair Display, serif');
+assert.equal(typography.italic, true);
+assert.equal(typography.underline, true);
+assert.equal(typography.textAlign, 'right');
+assert.equal(typography.letterSpacing, 4.5);
 editor.command('lock');
 editor.command('text', 'Should not change');
 editor.removeSelected();
@@ -53,6 +65,6 @@ editor.reset();
 assert.equal(editor.getState().elements.length, 0);
 editor.command('undo');
 assert.equal(editor.getState().elements.length, 3);
-editor.dispose(); editor.init('canvas');
+editor.dispose(); editor.init('canvas', { canvasWidth: 600, canvasHeight: 1000, printAreaX: 34, printAreaY: 94, printAreaWidth: 532, printAreaHeight: 852 });
 assert.equal(editor.getState().canUndo, false);
 console.log('PASS: properties, history branches, reset undo, lock, visibility, ordering, duplicate, preview guards and lifecycle.');

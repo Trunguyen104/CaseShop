@@ -1,9 +1,16 @@
 @namespace CaseShop.Web.Components.Pages.Editor
 @using CaseShop.Web.Components.Shared
 
-<aside class="studio-panel lg:col-span-3 h-full flex flex-col bg-surface-container-lowest border-l border-outline-variant z-10 overflow-hidden">
+<aside class="studio-panel studio-properties-panel @Class lg:col-span-3 h-full flex flex-col bg-surface-container-lowest border-l border-outline-variant z-10 overflow-hidden">
+    <div class="mobile-sheet-handle lg:hidden" aria-hidden="true"></div>
     <div class="p-3 bg-surface-container-low border-b border-outline-variant flex items-center justify-between">
-        <span class="font-label-md text-label-md font-semibold text-on-surface">Lớp &amp; Thuộc tính</span>
+        <div>
+            <span class="font-label-md text-label-md font-semibold text-on-surface">Lớp &amp; Thuộc tính</span>
+            <p class="font-body-sm text-body-sm text-on-surface-variant mt-0.5">Sắp xếp và tinh chỉnh phần tử</p>
+        </div>
+        <button type="button" class="mobile-sheet-close lg:hidden" @onclick="OnRequestClose" aria-label="Đóng bảng thuộc tính">
+            <span class="material-symbols-outlined">close</span>
+        </button>
     </div>
     <div class="flex-1 overflow-y-auto p-4 space-y-6">
         @if (EditorReady)
@@ -15,4 +22,6 @@
 
 @code {
     [Parameter] public bool EditorReady { get; set; }
+    [Parameter] public string Class { get; set; } = string.Empty;
+    [Parameter] public EventCallback OnRequestClose { get; set; }
 }

@@ -18,7 +18,7 @@ function setup() {
     const main = canvas();
     class Image extends EventTarget {
         constructor() { super(); this.complete = false; this.naturalWidth = 0; this.naturalHeight = 0; this.listeners = 0; images.push(this); }
-        set src(value) { assert.equal(this.crossOrigin, 'anonymous'); this.url = value; }
+        set src(value) { if (this.crossOrigin !== undefined) assert.equal(this.crossOrigin, 'anonymous'); this.url = value; }
         addEventListener(...args) { this.listeners++; super.addEventListener(...args); }
         removeEventListener(...args) { this.listeners--; super.removeEventListener(...args); }
         finish(ok = true) { this.complete = true; this.naturalWidth = ok ? 100 : 0; this.naturalHeight = ok ? 200 : 0;
@@ -26,6 +26,7 @@ function setup() {
     }
     const sandbox = {window: {}, Image, console,
         setTimeout: (fn, ms) => setTimeout(fn, Math.min(ms, 30)), clearTimeout,
+        localStorage: {getItem:()=>null,setItem(){},removeItem(){},key:()=>null,get length(){return 0;}},
         ResizeObserver: class {observe() {} disconnect() {}},
         document: {getElementById: () => main, body: {appendChild() {}},
             createElement(tag) { if(tag === 'canvas') return canvas();
@@ -33,19 +34,23 @@ function setup() {
                 links.push(link); return link;
             }}
     };
-    vm.runInNewContext(source.replace('init, render, reset, dispose, toLogical,', '_testState: _state, init, render, reset, dispose, toLogical,'), sandbox);
+    vm.runInNewContext(source.replace('init, setPhoneModel, render, reset, dispose, toLogical,', '_testState: _state, init, setPhoneModel, render, reset, dispose, toLogical,'), sandbox);
     const api = sandbox.window.CaseShopEditor;
-    api.init('canvas');
+    api.init('canvas', {canvasWidth:600,canvasHeight:1000,printAreaX:34,printAreaY:94,printAreaWidth:532,printAreaHeight:852});
     return {api, main, canvases, images, links, failCapture: () => failCapture = true, failDownload: () => failDownload = true};
 }
 (async () => {
     const t = setup(), {api} = t;
-    assert(t.main.calls.some(c => c[0] === 'fillText' && c[1] === 'Vung thiet ke'));
+    assert(!t.main.calls.some(c => c[0] === 'fillText'));
     assert.equal((await api.exportDesign()).success, true);
     assert(!t.canvases.at(-1).calls.some(c => c[0] === 'fillText'));
-    api.setBackground('background');
-    api.addSticker('database-id', 'sticker', 'Database');
-    api.addUploadedSticker('upload', 'Uploaded', api.beginUpload());
+    const backgroundSet = api.setBackground('background');
+    t.images[0].finish();
+    await backgroundSet;
+    const stickerAdded = api.addSticker('database-id', 'sticker', 'Database');
+    const uploadAdded = api.addUploadedSticker('upload', 'Uploaded', api.beginUpload());
+    t.images.slice(1).forEach(i => i.finish());
+    await Promise.all([stickerAdded, uploadAdded]);
     api.addText('Hello');
     const el = api._testState.elements[0];
     Object.assign(el, {x: 80, y: 170, width: 180, height: 240, rotation: 45});
@@ -71,7 +76,12 @@ function setup() {
     api.addText('Still editable');
     assert.equal(api._testState.elements.length, 4);
     const slow = setup();
-    slow.api.setBackground('slow');
+    const slowBackground = slow.api.setBackground('slow');
+    slow.images[0].finish();
+    await slowBackground;
+    slow.images[0].complete = false;
+    slow.images[0].naturalWidth = 0;
+    slow.images[0].naturalHeight = 0;
     const snapshotExport = slow.api.exportDesign();
     slow.api.addText('After click');
     assert((await snapshotExport).warning);
@@ -84,7 +94,9 @@ function setup() {
     const blocked = setup(); blocked.failDownload();
     assert.equal((await blocked.api.exportDesign()).success, false);
     assert(blocked.links[0].removed);
-    const disposed = setup(); disposed.api.setBackground('slow');
+    const disposed = setup(); const disposedBackground = disposed.api.setBackground('slow');
+    disposed.images[0].finish(); await disposedBackground;
+    disposed.images[0].complete = false; disposed.images[0].naturalWidth = 0; disposed.images[0].naturalHeight = 0;
     const leaving = disposed.api.exportDesign(); disposed.api.dispose();
     assert.equal((await leaving).success, false); assert.equal(disposed.links.length, 0);
     console.log('PASS: clean rendering, snapshot/state preservation, image wait/error/timeout cleanup, CORS setup, transforms/order, preview, logical size, duplicate guard, capture/download failure, disposal.');

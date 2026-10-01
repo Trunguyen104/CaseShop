@@ -1,0 +1,94 @@
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+<dialog id="properties-crop-dialog" class="cropper-dialog" aria-labelledby="properties-crop-title" @oncancel="Close">
+    <div class="cropper-dialog-panel">
+        <div class="flex items-start justify-between border-b border-outline-variant p-4 sm:p-5">
+            <div>
+                <h2 id="properties-crop-title" class="font-headline-sm text-headline-sm font-semibold">Cắt ảnh trên canvas</h2>
+                <p class="mt-1 text-body-sm text-on-surface-variant">Kéo ảnh, điều chỉnh tự do các cạnh hoặc chụm hai ngón tay để thu phóng.</p>
+            </div>
+            <button type="button" class="crop-icon-button" @onclick="Close" aria-label="Đóng"><span class="material-symbols-outlined">close</span></button>
+        </div>
+
+        <div class="cropper-dialog-body space-y-4 p-4 sm:p-5">
+            <div id="properties-crop-host" class="cropper-host" aria-label="Kéo ảnh hoặc các góc vùng chọn để cắt ảnh">
+                <img id="properties-crop-image" src="@ImageUrl" alt="Xem trước vùng cắt" crossorigin="anonymous" />
+            </div>
+            <div class="cropper-toolbar" aria-label="Điều khiển cắt ảnh">
+                <button type="button" class="crop-icon-button" @onclick='() => Transform("zoomOut")' title="Thu nhỏ" aria-label="Thu nhỏ"><span class="material-symbols-outlined">zoom_out</span></button>
+                <button type="button" class="crop-icon-button" @onclick='() => Transform("zoomIn")' title="Phóng to" aria-label="Phóng to"><span class="material-symbols-outlined">zoom_in</span></button>
+                <button type="button" class="crop-icon-button" @onclick='() => Transform("rotateLeft")' title="Xoay trái" aria-label="Xoay trái"><span class="material-symbols-outlined">rotate_left</span></button>
+                <button type="button" class="crop-icon-button" @onclick='() => Transform("rotateRight")' title="Xoay phải" aria-label="Xoay phải"><span class="material-symbols-outlined">rotate_right</span></button>
+                <span class="flex-1"></span>
+                <button type="button" class="crop-icon-button" @onclick='() => Transform("reset")' title="Đặt lại" aria-label="Đặt lại vùng cắt"><span class="material-symbols-outlined">restart_alt</span></button>
+            </div>
+            @if (!string.IsNullOrEmpty(_error))
+            {
+                <p class="text-body-sm text-error" role="alert">@_error</p>
+            }
+        </div>
+
+        <div class="cropper-dialog-actions flex justify-end gap-2 border-t border-outline-variant p-4 sm:px-5">
+            <button type="button" class="studio-action" @onclick="Close">Hủy</button>
+            <button type="button" class="studio-action studio-action-primary" disabled="@_processing" @onclick="Apply">
+                @(_processing ? "Đang xử lý..." : "Áp dụng cắt")
+            </button>
+        </div>
+    </div>
+</dialog>
+
+@code {
+    [Parameter, EditorRequired] public string ElementId { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string ImageUrl { get; set; } = string.Empty;
+    [Parameter] public EventCallback OnClosed { get; set; }
+
+    private bool _processing;
+    private string? _error;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        var initialized = await JS.InvokeAsync<bool>("CaseShopEditor.initImageCropper", "properties-crop-image", "properties-crop-host", "properties-crop-dialog");
+        if (!initialized)
+        {
+            _error = "Không thể khởi tạo công cụ cắt ảnh.";
+            StateHasChanged();
+        }
+    }
+
+    private Task Transform(string action) => JS.InvokeVoidAsync("CaseShopEditor.transformImageCropper", action).AsTask();
+
+    private async Task Apply()
+    {
+        if (_processing) return;
+        _processing = true;
+        _error = null;
+        try
+        {
+            var cropped = await JS.InvokeAsync<string>("CaseShopEditor.exportImageCropper");
+            var applied = await JS.InvokeAsync<bool>("CaseShopEditor.applyCroppedSticker", ElementId, cropped);
+            if (!applied) throw new InvalidOperationException();
+            await Close();
+        }
+        catch
+        {
+            _error = "Không thể cắt ảnh này. Hãy kiểm tra quyền truy cập ảnh hoặc tải ảnh lên lại.";
+        }
+        finally
+        {
+            _processing = false;
+        }
+    }
+
+    private async Task Close()
+    {
+        try { await JS.InvokeVoidAsync("CaseShopEditor.destroyImageCropper"); } catch { }
+        await OnClosed.InvokeAsync();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try { await JS.InvokeVoidAsync("CaseShopEditor.destroyImageCropper"); } catch { }
+    }
+}
