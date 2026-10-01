@@ -54,10 +54,7 @@ public class ProductService : IProductService
             throw new ArgumentException("Tên sản phẩm không được để trống.", nameof(dto.Name));
         }
 
-        if (dto.Price <= 0)
-        {
-            throw new ArgumentException("Giá sản phẩm phải lớn hơn 0.", nameof(dto.Price));
-        }
+        ValidatePrice(dto.Price);
 
         var product = new Product
         {
@@ -88,10 +85,7 @@ public class ProductService : IProductService
             throw new ArgumentException("Tên sản phẩm không được để trống.", nameof(dto.Name));
         }
 
-        if (dto.Price <= 0)
-        {
-            throw new ArgumentException("Giá sản phẩm phải lớn hơn 0.", nameof(dto.Price));
-        }
+        ValidatePrice(dto.Price);
 
         product.Name = dto.Name.Trim();
         product.Description = dto.Description?.Trim();
@@ -139,5 +133,13 @@ public class ProductService : IProductService
             CreatedAt = product.CreatedAt,
             UpdatedAt = product.UpdatedAt
         };
+    }
+
+    private static void ValidatePrice(decimal price)
+    {
+        if (price is < 1m or > 1_000_000_000m)
+        {
+            throw new ArgumentOutOfRangeException(nameof(price), "Giá sản phẩm phải từ 1₫ đến 1.000.000.000₫.");
+        }
     }
 }
