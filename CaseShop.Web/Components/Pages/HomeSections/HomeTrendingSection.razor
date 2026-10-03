@@ -7,7 +7,7 @@
 <section class="w-full bg-surface py-20 lg:py-28">
     <div class="mx-auto max-w-7xl px-margin-mobile lg:px-margin">
         <div class="mb-12 flex flex-col justify-between gap-4 md:flex-row md:items-end">
-            <div>
+            <div data-motion-reveal>
                 <span class="mb-2 block font-overline text-overline uppercase tracking-widest text-on-secondary-container">Vừa cập nhật</span>
                 <h2 class="font-headline-xl text-headline-xl-mobile font-bold text-on-surface lg:text-headline-xl">Sản phẩm tiêu biểu</h2>
                 <p class="mt-3 font-body-md text-body-md text-on-surface-variant">Khám phá những mẫu ốp lưng mới nhất tại CASESHOP.</p>
@@ -37,7 +37,7 @@
         }
         else
         {
-            <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 lg:gap-8">
+            <div data-motion-stagger class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 lg:gap-8">
                 @foreach (var product in _products)
                 {
                     <ProductCard Product="product" />

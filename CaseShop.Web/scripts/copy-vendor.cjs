@@ -4,6 +4,8 @@ const path = require('node:path');
 const files = [
   ['../node_modules/cropperjs/dist/cropper.min.js', '../wwwroot/vendor/cropperjs/cropper.min.js'],
   ['../node_modules/qrcode-generator/dist/qrcode.js', '../wwwroot/vendor/qrcode/qrcode.js'],
+  ['../node_modules/gsap/dist/gsap.min.js', '../wwwroot/vendor/gsap/gsap.min.js'],
+  ['../node_modules/gsap/dist/ScrollTrigger.min.js', '../wwwroot/vendor/gsap/ScrollTrigger.min.js'],
 ];
 
 for (const [sourcePath, destinationPath] of files) {

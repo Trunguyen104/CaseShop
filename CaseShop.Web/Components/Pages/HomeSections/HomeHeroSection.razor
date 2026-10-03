@@ -1,31 +1,57 @@
-<section class="relative w-full overflow-hidden bg-surface pt-8 pb-20 lg:pt-14 lg:pb-28">
-    <div class="max-w-7xl mx-auto px-margin-mobile lg:px-margin">
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
-            <!-- Hero Content (7 Cols) -->
-            <div class="lg:col-span-7 flex flex-col items-start z-10">
-                <h1 class="font-display-hero text-display-hero-mobile lg:text-display-hero text-primary font-bold tracking-tight mb-6 leading-tight">
-                    Your case.<br />
-                    <span class="text-on-secondary-container">Your style.</span>
+<section data-motion-hero class="relative isolate flex min-h-[calc(100svh-4rem)] w-full overflow-hidden bg-black text-white">
+    <div aria-hidden="true" class="pointer-events-none absolute inset-0">
+        <div data-motion-hero-glow class="absolute -right-[12%] -top-[30%] h-[90%] w-[70%] rounded-full bg-[radial-gradient(circle,rgba(129,140,248,.32)_0%,rgba(37,99,235,.14)_38%,transparent_70%)] blur-2xl"></div>
+        <div class="absolute bottom-[-45%] left-[18%] h-[70%] w-[72%] rounded-full bg-[radial-gradient(circle,rgba(125,132,151,.18)_0%,transparent_68%)] blur-3xl"></div>
+        <div class="absolute inset-0 bg-[linear-gradient(110deg,#000_0%,rgba(0,0,0,.96)_42%,rgba(0,0,0,.42)_72%,#000_100%)]"></div>
+        <div class="absolute inset-0 opacity-[.07] [background-image:linear-gradient(rgba(255,255,255,.35)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.35)_1px,transparent_1px)] [background-size:72px_72px]"></div>
+    </div>
+
+    <div class="relative mx-auto flex w-full max-w-7xl items-center px-margin-mobile py-16 sm:py-20 lg:px-margin lg:py-24">
+        <div class="grid w-full items-center gap-12 lg:grid-cols-12 lg:gap-0">
+            <div class="relative z-20 flex flex-col items-start lg:col-span-8">
+                <div data-motion-hero-item class="mb-7 flex items-center gap-3 font-overline text-overline uppercase tracking-[.22em] text-primary-fixed-dim">
+                    <span class="h-px w-10 bg-primary-fixed-dim"></span>
+                    Custom phone case studio
+                </div>
+                <h1 data-motion-hero-item class="max-w-5xl text-[clamp(3.25rem,8.2vw,7.5rem)] font-semibold leading-[.9] tracking-[-.065em] text-white">
+                    Mang ý tưởng.<br />
+                    <span class="text-primary-fixed-dim">Tạo chất riêng.</span>
                 </h1>
-                <p class="font-body-lg text-body-lg text-on-surface-variant max-w-xl mb-10 leading-relaxed">
-                    Ốp lưng tuỳ biến chuẩn phong cách tối giản cao cấp. Bảo vệ thiết bị toàn diện với vật liệu chống sốc thế hệ mới cùng khả năng cá nhân hoá không giới hạn.
+                <p data-motion-hero-item class="mt-8 max-w-xl font-body-lg text-body-lg leading-relaxed text-white/65 sm:mt-10 sm:text-[18px] sm:leading-7">
+                    Một studio trực tuyến để bạn biến ảnh, câu chữ và cảm hứng thành chiếc ốp độc bản — trực quan, chính xác và không cần kỹ năng thiết kế.
                 </p>
-                <div class="flex flex-wrap items-center gap-4 w-full sm:w-auto">
-                    <a class="inline-flex items-center justify-center gap-3 px-8 py-3.5 rounded-lg bg-primary text-on-primary font-label-md text-label-md hover:bg-neutral-800 transition-all shadow-md group" href="/customize">
-                        <span>Thiết kế ốp lưng</span>
-                        <span class="material-symbols-outlined text-[18px] group-hover:translate-x-1 transition-transform">arrow_forward</span>
+                <div data-motion-hero-item class="mt-9 flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
+                    <a class="group inline-flex min-h-12 items-center justify-center gap-3 rounded-full bg-primary-fixed px-7 font-label-md text-label-md font-bold text-on-primary-fixed shadow-[0_16px_44px_rgba(192,198,219,.18)] transition duration-300 hover:-translate-y-0.5 hover:bg-white" href="/customize/select">
+                        <span>Bắt đầu thiết kế</span>
+                        <span class="material-symbols-outlined text-[18px] transition-transform duration-300 group-hover:translate-x-1">arrow_forward</span>
                     </a>
-                    <a class="inline-flex items-center justify-center px-8 py-3.5 rounded-lg bg-surface-container-lowest text-on-surface font-label-md text-label-md hover:bg-surface-container transition-colors shadow-sm" href="/shop">
-                        Khám phá sản phẩm
-                    </a>
+                    <a class="inline-flex min-h-12 items-center justify-center rounded-full border border-white/30 px-7 font-label-md text-label-md font-semibold text-white transition duration-300 hover:border-white hover:bg-white/10" href="/shop">Xem sản phẩm mới</a>
+                </div>
+                <div data-motion-hero-item class="mt-10 flex flex-wrap items-center gap-x-6 gap-y-3 text-[12px] font-medium uppercase tracking-[.12em] text-white/45">
+                    <span class="flex items-center gap-2"><span class="h-1.5 w-1.5 rounded-full bg-primary-fixed-dim"></span>Preview trực tiếp</span>
+                    <span class="flex items-center gap-2"><span class="h-1.5 w-1.5 rounded-full bg-primary-fixed-dim"></span>In theo yêu cầu</span>
+                    <span class="flex items-center gap-2"><span class="h-1.5 w-1.5 rounded-full bg-primary-fixed-dim"></span>Giao toàn quốc</span>
                 </div>
             </div>
-            <!-- Hero Visual Showcase (5 Cols) -->
-            <div class="lg:col-span-5 relative flex justify-center lg:justify-end">
-                <div class="relative w-full max-w-md aspect-[4/5] rounded-2xl overflow-hidden bg-surface-container shadow-xl">
-                    <img class="w-full h-full object-cover object-center" alt="Close up studio shot of an ultra minimalist iPhone case" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCP2h9o6yid2PSsmJxuoXJQ9YYT0ksQqhyOACcSLaP__1OXJz9ITuqRZcIwNl6uRBP2auH2kKwcBQyMtjMUHKQZ-G4Eo6spE7WlF6EwsbP3ueTP4NbnfSEvFGNR2I26Sm_w-5h_ESN1E-flyWHkPZRRCRff0STtF1mJeYvVGqAZDJ0J9cz4hM4U0Ud-IJj0HMAjbCa-o2qao8Ydz1iKEZVvnhlILtjba_PC3YQEmXdKOK2dtTdZuzHZCw" />
+
+            <div data-motion-hero-visual class="group relative z-10 mx-auto h-[440px] w-full max-w-[390px] [perspective:1200px] lg:col-span-4 lg:-ml-16 lg:h-[620px] lg:max-w-none">
+                <div data-motion-hero-stage class="absolute inset-0 [transform-style:preserve-3d]">
+                    <div data-motion-hero-depth="0.35" aria-hidden="true" class="absolute left-1/2 top-1/2 h-[82%] w-[70%] -translate-x-1/2 -translate-y-1/2 rotate-[-8deg] rounded-[3rem] border border-white/15 bg-white/[.04] shadow-[0_40px_100px_rgba(30,64,175,.28)] backdrop-blur-sm transition-colors duration-500 group-hover:border-white/25"></div>
+                    <div data-motion-hero-depth="1" data-motion-image class="absolute left-1/2 top-1/2 aspect-[9/19] h-[86%] -translate-x-1/2 -translate-y-1/2 rotate-[8deg] overflow-hidden rounded-[2.75rem] border border-white/20 bg-surface-container shadow-[0_48px_120px_rgba(0,0,0,.65)] transition-shadow duration-500 group-hover:shadow-[0_58px_140px_rgba(37,99,235,.32)]">
+                        <img data-motion-parallax="34" loading="eager" decoding="async" class="h-full w-full scale-110 object-cover object-center" alt="Ốp lưng tối giản được cá nhân hóa trong ME-ISM Studio" src="images/phonehero.webp" />
+                        <div class="pointer-events-none absolute inset-0 bg-gradient-to-tr from-black/35 via-transparent to-white/15"></div>
+                        <div data-motion-hero-shine class="pointer-events-none absolute -inset-1/2 bg-[radial-gradient(circle,rgba(255,255,255,.30)_0%,rgba(255,255,255,.08)_20%,transparent_52%)] opacity-0 mix-blend-screen"></div>
+                    </div>
+                    <div data-motion-hero-depth="0.7" class="absolute bottom-[11%] left-0 rounded-2xl border border-white/15 bg-black/55 px-4 py-3 shadow-xl backdrop-blur-xl lg:-left-4">
+                        <p class="text-[10px] font-semibold uppercase tracking-[.18em] text-white/45">ME-ISM Studio</p>
+                        <p class="mt-1 text-sm font-semibold text-white">Thiết kế của bạn · Phong cách của bạn</p>
+                    </div>
                 </div>
             </div>
         </div>
+    </div>
+
+    <div data-motion-hero-item aria-hidden="true" class="absolute bottom-5 left-1/2 hidden -translate-x-1/2 items-center gap-3 text-[10px] font-semibold uppercase tracking-[.22em] text-white/35 md:flex">
+        <span>Khám phá</span><span class="h-8 w-px bg-gradient-to-b from-white/50 to-transparent"></span>
     </div>
 </section>

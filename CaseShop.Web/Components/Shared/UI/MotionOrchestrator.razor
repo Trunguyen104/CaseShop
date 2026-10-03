@@ -1,0 +1,73 @@
+@implements IAsyncDisposable
+@rendermode InteractiveServer
+@inject IJSRuntime JSRuntime
+@inject NavigationManager NavigationManager
+@inject ILogger<MotionOrchestrator> Logger
+
+@code {
+    private IJSObjectReference? _module;
+    private bool _refreshPending;
+    private bool _disposed;
+
+    protected override void OnInitialized()
+    {
+        NavigationManager.LocationChanged += HandleLocationChanged;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_disposed) return;
+
+        try
+        {
+            if (firstRender)
+            {
+                _module = await JSRuntime.InvokeAsync<IJSObjectReference>("import", "./js/animations/motion-core.js");
+                await _module.InvokeVoidAsync("init");
+                return;
+            }
+
+            if (_refreshPending && _module is not null)
+            {
+                _refreshPending = false;
+                await _module.InvokeVoidAsync("refresh");
+            }
+        }
+        catch (JSDisconnectedException)
+        {
+            // The circuit is already gone; there is no browser state left to clean up.
+        }
+        catch (JSException ex)
+        {
+            Logger.LogWarning(ex, "Could not initialize storefront motion effects.");
+        }
+    }
+
+    private void HandleLocationChanged(object? sender, LocationChangedEventArgs args)
+    {
+        _refreshPending = true;
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        NavigationManager.LocationChanged -= HandleLocationChanged;
+
+        if (_module is null) return;
+        try
+        {
+            await _module.InvokeVoidAsync("destroy");
+            await _module.DisposeAsync();
+        }
+        catch (JSDisconnectedException)
+        {
+            // Expected when the browser closes before the server circuit.
+        }
+        catch (JSException ex)
+        {
+            Logger.LogDebug(ex, "Could not dispose storefront motion effects cleanly.");
+        }
+    }
+}

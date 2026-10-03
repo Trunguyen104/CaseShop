@@ -9,6 +9,20 @@
   main > :last-child { margin-bottom: 0 !important; }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto !important; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media (min-width: 768px) and (prefers-reduced-motion: no-preference) {
+  [data-motion-parallax] { will-change: transform; }
+}
+
 ::-webkit-scrollbar { display: none; }
 
 .blazor-error-boundary {
