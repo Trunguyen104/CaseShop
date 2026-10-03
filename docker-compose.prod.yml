@@ -36,6 +36,14 @@ services:
       - Cloudinary__ApiSecret=${CLOUDINARY_API_SECRET:?CLOUDINARY_API_SECRET must be configured in .env}
       - AdminCredentials__Username=${ADMIN_USERNAME:-admin}
       - AdminCredentials__Password=${ADMIN_PASSWORD:?ADMIN_PASSWORD must be configured in .env}
+      - Smtp__Host=${SMTP_HOST:?SMTP_HOST must be configured in .env}
+      - Smtp__Port=${SMTP_PORT:-587}
+      - Smtp__EnableSsl=${SMTP_ENABLE_SSL:-true}
+      - Smtp__Username=${SMTP_USERNAME:?SMTP_USERNAME must be configured in .env}
+      - Smtp__Password=${SMTP_PASSWORD:?SMTP_PASSWORD must be configured in .env}
+      - Smtp__FromEmail=${SMTP_FROM_EMAIL:?SMTP_FROM_EMAIL must be configured in .env}
+      - Smtp__FromName=${SMTP_FROM_NAME:-ME-ISM}
+      - Smtp__SupportEmail=${SMTP_SUPPORT_EMAIL:?SMTP_SUPPORT_EMAIL must be configured in .env}
     env_file:
       - .env
     networks:

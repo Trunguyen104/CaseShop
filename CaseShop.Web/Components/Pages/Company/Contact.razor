@@ -1,0 +1,82 @@
+@page "/contact"
+
+<PageTitle>Liên hệ ME-ISM — Hỗ trợ thiết kế và đơn hàng</PageTitle>
+
+<main class="bg-surface text-on-surface">
+    <section class="border-b border-outline-variant bg-surface-container-low py-16 sm:py-24">
+        <div class="mx-auto max-w-7xl px-margin-mobile lg:px-margin">
+            <div class="max-w-3xl">
+                <span class="font-overline text-overline uppercase tracking-widest text-on-secondary-container">Liên hệ ME-ISM</span>
+                <h1 class="mt-4 font-headline-xl text-headline-xl-mobile font-bold leading-tight lg:text-headline-xl">Chúng mình luôn sẵn sàng nghe ý tưởng của bạn.</h1>
+                <p class="mt-6 font-body-lg text-body-lg leading-relaxed text-on-surface-variant">Cần hỗ trợ thiết kế, kiểm tra đơn hàng hay trao đổi hợp tác? Chọn kênh phù hợp bên dưới để đội ngũ ME-ISM phản hồi nhanh nhất.</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="py-16 sm:py-24">
+        <div class="mx-auto grid max-w-7xl gap-8 px-margin-mobile lg:grid-cols-[1.1fr_.9fr] lg:px-margin">
+            <div>
+                <h2 class="font-headline-lg text-headline-lg font-bold">Kênh hỗ trợ</h2>
+                <div class="mt-8 grid gap-4 sm:grid-cols-2">
+                    <a href="mailto:meismexe101@gmail.com" class="group rounded-2xl border border-outline-variant bg-surface-container-lowest p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
+                        <span class="material-symbols-outlined rounded-xl bg-secondary-container p-3 text-on-secondary-container">mail</span>
+                        <h3 class="mt-6 font-headline-sm text-headline-sm font-semibold">Email</h3>
+                        <p class="mt-2 break-all font-body-sm text-body-sm text-on-surface-variant">meismexe101@gmail.com</p>
+                        <span class="mt-5 inline-flex items-center gap-1 font-label-sm text-label-sm font-semibold">Gửi email <span class="material-symbols-outlined text-[16px] transition group-hover:translate-x-1">arrow_forward</span></span>
+                    </a>
+                    <a href="tel:+84949723852" class="group rounded-2xl border border-outline-variant bg-surface-container-lowest p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
+                        <span class="material-symbols-outlined rounded-xl bg-secondary-container p-3 text-on-secondary-container">call</span>
+                        <h3 class="mt-6 font-headline-sm text-headline-sm font-semibold">Hotline</h3>
+                        <p class="mt-2 font-body-sm text-body-sm text-on-surface-variant">+84 949 723 852</p>
+                        <span class="mt-5 inline-flex items-center gap-1 font-label-sm text-label-sm font-semibold">Gọi ngay <span class="material-symbols-outlined text-[16px] transition group-hover:translate-x-1">arrow_forward</span></span>
+                    </a>
+                    <div class="rounded-2xl border border-outline-variant bg-surface-container-lowest p-6 shadow-sm sm:col-span-2">
+                        <span class="material-symbols-outlined rounded-xl bg-secondary-container p-3 text-on-secondary-container">location_on</span>
+                        <h3 class="mt-6 font-headline-sm text-headline-sm font-semibold">Studio ME-ISM</h3>
+                        <p class="mt-2 font-body-sm text-body-sm leading-relaxed text-on-surface-variant">600 Nguyễn Văn Cừ, Ninh Kiều, Cần Thơ</p>
+                        <p class="mt-4 font-label-sm text-label-sm font-semibold">Thứ Hai – Thứ Bảy · 08:00 – 18:00</p>
+                    </div>
+                </div>
+            </div>
+
+            <aside class="rounded-3xl bg-primary p-7 text-on-primary shadow-xl sm:p-10">
+                <span class="material-symbols-outlined text-[36px]">support_agent</span>
+                <h2 class="mt-6 font-headline-lg text-headline-lg font-bold">Để được hỗ trợ nhanh hơn</h2>
+                <p class="mt-4 font-body-md text-body-md leading-relaxed text-inverse-primary">Khi liên hệ về đơn hàng, hãy chuẩn bị mã đơn và email hoặc số điện thoại đã dùng khi đặt hàng.</p>
+                <ul class="mt-8 space-y-4 font-body-sm text-body-sm text-inverse-primary">
+                    @foreach (var item in SupportChecklist)
+                    {
+                        <li class="flex gap-3"><span class="material-symbols-outlined text-[20px] text-on-primary-container">check_circle</span><span>@item</span></li>
+                    }
+                </ul>
+                <div class="mt-10 border-t border-white/15 pt-8">
+                    <p class="font-label-sm text-label-sm uppercase tracking-widest text-on-primary-container">Tự kiểm tra trạng thái</p>
+                    <a href="/track" class="mt-4 inline-flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-surface-container-lowest px-6 font-label-md text-label-md font-semibold text-primary transition hover:bg-neutral-200">Theo dõi đơn hàng <span class="material-symbols-outlined text-[18px]">local_shipping</span></a>
+                </div>
+            </aside>
+        </div>
+    </section>
+
+    <section class="bg-surface-container-low py-16 sm:py-20">
+        <div class="mx-auto max-w-7xl px-margin-mobile lg:px-margin">
+            <div class="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+                <div class="max-w-2xl">
+                    <span class="font-overline text-overline uppercase tracking-widest text-on-secondary-container">Bạn chưa có thiết kế?</span>
+                    <h2 class="mt-3 font-headline-lg text-headline-lg font-bold">Bắt đầu từ một ý tưởng nhỏ.</h2>
+                    <p class="mt-3 font-body-md text-body-md text-on-surface-variant">Trợ lý ME-ISM có thể gợi ý phong cách và prompt; Studio giúp bạn hoàn thiện bố cục trước khi đặt in.</p>
+                </div>
+                <a href="/customize/select" class="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-lg bg-primary px-6 font-label-md text-label-md font-semibold text-on-primary shadow-md transition hover:bg-neutral-800">Mở Studio thiết kế <span class="material-symbols-outlined text-[18px]">palette</span></a>
+            </div>
+        </div>
+    </section>
+</main>
+
+@code {
+    private static readonly string[] SupportChecklist =
+    [
+        "Mã đơn hàng, nếu bạn đã đặt hàng",
+        "Mẫu điện thoại và nội dung cần hỗ trợ",
+        "Ảnh chụp màn hình khi gặp lỗi thiết kế",
+        "Không gửi mật khẩu hoặc thông tin thanh toán nhạy cảm"
+    ];
+}

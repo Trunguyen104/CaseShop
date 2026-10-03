@@ -122,6 +122,7 @@ public static class EnvLoader
             case "PAYOS_CANCEL_URL": Environment.SetEnvironmentVariable("PayOS__CancelUrl", val); break;
             case "SMTP_HOST": Environment.SetEnvironmentVariable("Smtp__Host", val); break;
             case "SMTP_PORT": Environment.SetEnvironmentVariable("Smtp__Port", val); break;
+            case "SMTP_ENABLE_SSL": Environment.SetEnvironmentVariable("Smtp__EnableSsl", val); break;
             case "SMTP_USERNAME": Environment.SetEnvironmentVariable("Smtp__Username", val); break;
             case "SMTP_PASSWORD": Environment.SetEnvironmentVariable("Smtp__Password", val); break;
             case "SMTP_FROM_EMAIL": Environment.SetEnvironmentVariable("Smtp__FromEmail", val); break;
