@@ -10,6 +10,9 @@ Console.WriteLine("=== Checkout payment and confirmation email tests ===");
 await ValidWebhookConfirmsOrderAndTriggersEmail();
 await AmountMismatchRequiresReview();
 await EmailFailureDoesNotRollbackPaidOrder();
+await CodOrderCanSendConfirmationEmail();
+await StatusUpdateEmailIsTrackedAndDeduplicated();
+await StatusEmailFailureDoesNotRollbackOrderStatus();
 Console.WriteLine("PASS: all checkout payment and email assertions passed.");
 
 static async Task ValidWebhookConfirmsOrderAndTriggersEmail()
@@ -48,6 +51,60 @@ static async Task EmailFailureDoesNotRollbackPaidOrder()
     Console.WriteLine("  ✓ email failure is recorded without rolling back payment");
 }
 
+static async Task CodOrderCanSendConfirmationEmail()
+{
+    var order = NewOrder();
+    order.PaymentMethod = PaymentMethodType.CashOnDelivery;
+    order.PaymentStatus = PaymentStatus.NotRequired;
+    var sender = new RecordingEmailSender();
+    var service = CreateEmailService(order, sender);
+
+    var sent = await service.SendAsync(order.Id);
+
+    Assert(sent, "COD confirmation email must be accepted without a paid status.");
+    Assert(order.ConfirmationEmailStatus == EmailDeliveryStatus.Sent, "COD confirmation email status must be persisted as sent.");
+    Assert(sender.Subjects.Single().Contains("ME-ISM", StringComparison.Ordinal), "Confirmation email must use the ME-ISM brand.");
+    Assert(sender.Bodies.Single().Contains("COD", StringComparison.Ordinal), "COD payment method must be shown in the email.");
+    Console.WriteLine("  ✓ COD order sends a branded confirmation email");
+}
+
+static async Task StatusUpdateEmailIsTrackedAndDeduplicated()
+{
+    var order = NewOrder();
+    order.Status = OrderStatus.Shipping;
+    order.StatusEmailStatus = EmailDeliveryStatus.Pending;
+    var sender = new RecordingEmailSender();
+    var service = CreateEmailService(order, sender);
+
+    var firstSent = await service.SendStatusUpdateAsync(order.Id);
+    var duplicateSent = await service.SendStatusUpdateAsync(order.Id);
+
+    Assert(firstSent && duplicateSent, "Status email calls must complete successfully.");
+    Assert(sender.Subjects.Count == 1, "The same order status email must not be sent twice.");
+    Assert(order.LastNotifiedStatus == OrderStatus.Shipping, "The notified order status must be persisted.");
+    Assert(order.StatusEmailStatus == EmailDeliveryStatus.Sent && order.StatusEmailAttempts == 1, "Status email delivery metadata is incorrect.");
+    Console.WriteLine("  ✓ status email is tracked and deduplicated");
+}
+
+static async Task StatusEmailFailureDoesNotRollbackOrderStatus()
+{
+    var order = NewOrder();
+    order.Status = OrderStatus.Completed;
+    var service = CreateEmailService(order, new ThrowingEmailSender());
+
+    var sent = await service.SendStatusUpdateAsync(order.Id);
+
+    Assert(!sent, "SMTP failure must be returned for a status email.");
+    Assert(order.Status == OrderStatus.Completed, "Status email failure must not rollback the order status.");
+    Assert(order.StatusEmailStatus == EmailDeliveryStatus.Failed && order.StatusEmailAttempts == 1, "Status email failure must be recorded for retry.");
+    Console.WriteLine("  ✓ status email failure does not rollback order status");
+}
+
+static OrderConfirmationEmailService CreateEmailService(Order order, IEmailSender sender) => new(
+    new FakeOrderRepository(order), sender,
+    Options.Create(new SmtpOptions { Host = "smtp.test", FromEmail = "no-reply@me-ism.test", SupportEmail = "support@me-ism.test" }),
+    NullLogger<OrderConfirmationEmailService>.Instance);
+
 static Order NewOrder() => new()
 {
     Id = Guid.NewGuid(), OrderCode = "CS-261001-TEST", CustomerName = "Nguyễn Văn An", Phone = "0900000000",
@@ -56,6 +113,7 @@ static Order NewOrder() => new()
     PaymentMethod = PaymentMethodType.PayOSQr, PaymentStatus = PaymentStatus.Pending, Status = OrderStatus.Pending,
     SubtotalAmount = 150_000, TotalAmount = 150_000, PayOsOrderCode = 2610011234567,
     ConfirmationEmailStatus = EmailDeliveryStatus.Pending, CreatedAt = DateTime.UtcNow,
+    StatusEmailStatus = EmailDeliveryStatus.Pending,
     Items = [new OrderItem { Id = Guid.NewGuid(), ProductId = Guid.NewGuid(), Quantity = 1, UnitPrice = 150_000,
         Product = new Product { Id = Guid.NewGuid(), Name = "Ốp lưng tùy chỉnh", IsActive = true } }]
 };
@@ -78,11 +136,25 @@ sealed class RecordingConfirmationEmail : IOrderConfirmationEmailService
 {
     public int CallCount { get; private set; }
     public Task<bool> SendAsync(Guid orderId, bool allowRetry = false, CancellationToken cancellationToken = default) { CallCount++; return Task.FromResult(true); }
+    public Task<bool> SendStatusUpdateAsync(Guid orderId, bool allowRetry = false, CancellationToken cancellationToken = default) => Task.FromResult(true);
 }
 
 sealed class ThrowingEmailSender : IEmailSender
 {
     public Task SendAsync(string recipient, string subject, string htmlBody, CancellationToken cancellationToken = default) => throw new InvalidOperationException("SMTP unavailable");
+}
+
+sealed class RecordingEmailSender : IEmailSender
+{
+    public List<string> Subjects { get; } = [];
+    public List<string> Bodies { get; } = [];
+
+    public Task SendAsync(string recipient, string subject, string htmlBody, CancellationToken cancellationToken = default)
+    {
+        Subjects.Add(subject);
+        Bodies.Add(htmlBody);
+        return Task.CompletedTask;
+    }
 }
 
 sealed class FakeOrderRepository(Order order) : IOrderRepository

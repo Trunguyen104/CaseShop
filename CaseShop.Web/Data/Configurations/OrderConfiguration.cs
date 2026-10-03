@@ -37,6 +37,13 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
                .IsRequired()
                .HasMaxLength(30)
                .HasConversion<string>();
+        builder.Property(x => x.StatusEmailStatus)
+               .IsRequired()
+               .HasMaxLength(30)
+               .HasConversion<string>();
+        builder.Property(x => x.LastNotifiedStatus)
+               .HasMaxLength(50)
+               .HasConversion<string>();
         builder.Property(x => x.SubtotalAmount).HasColumnType("decimal(18,2)");
         builder.Property(x => x.ShippingFee).HasColumnType("decimal(18,2)");
         builder.Property(x => x.TotalAmount).HasColumnType("decimal(18,2)");
@@ -45,6 +52,7 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.Property(x => x.PayOsQrCode).HasMaxLength(2000);
         builder.Property(x => x.PaymentReference).HasMaxLength(100);
         builder.Property(x => x.ConfirmationEmailLastError).HasMaxLength(1000);
+        builder.Property(x => x.StatusEmailLastError).HasMaxLength(1000);
         
         builder.HasIndex(x => x.OrderCode).IsUnique();
         builder.HasIndex(x => x.PayOsOrderCode).IsUnique();

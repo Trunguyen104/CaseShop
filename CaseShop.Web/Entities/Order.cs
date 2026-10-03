@@ -33,6 +33,11 @@ public class Order
     public int ConfirmationEmailAttempts { get; set; }
     public DateTime? ConfirmationEmailSentAt { get; set; }
     public string? ConfirmationEmailLastError { get; set; }
+    public EmailDeliveryStatus StatusEmailStatus { get; set; }
+    public int StatusEmailAttempts { get; set; }
+    public DateTime? StatusEmailSentAt { get; set; }
+    public string? StatusEmailLastError { get; set; }
+    public OrderStatus? LastNotifiedStatus { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
 

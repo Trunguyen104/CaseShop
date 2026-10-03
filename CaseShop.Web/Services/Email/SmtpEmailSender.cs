@@ -27,9 +27,14 @@ public sealed class SmtpEmailSender : IEmailSender
             EnableSsl = _options.EnableSsl,
             Credentials = string.IsNullOrWhiteSpace(_options.Username)
                 ? CredentialCache.DefaultNetworkCredentials
-                : new NetworkCredential(_options.Username, _options.Password)
+                : new NetworkCredential(_options.Username, NormalizePassword(_options.Host, _options.Password))
         };
 
         await client.SendMailAsync(message, cancellationToken);
     }
+
+    private static string NormalizePassword(string host, string password) =>
+        host.Equals("smtp.gmail.com", StringComparison.OrdinalIgnoreCase)
+            ? string.Concat(password.Where(character => !char.IsWhiteSpace(character)))
+            : password;
 }

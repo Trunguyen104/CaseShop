@@ -117,6 +117,7 @@
                 <div class="lg:col-span-4 space-y-6">
                     <OrderDetailStatusCard Status="_currentStatus"
                                            UpdatedAt="_order.UpdatedAt"
+                                           StatusEmailStatus="_order.StatusEmailStatus"
                                            IsUpdating="_isUpdating"
                                            OnStatusUpdate="UpdateStatusAsync" />
 
@@ -270,8 +271,10 @@
             var success = await OrderService.UpdateOrderStatusAsync(Id, newStatus);
             if (success)
             {
-                _updateMessage = $"Cập nhật trạng thái sang \"{OrderAdminHelpers.GetStatusDisplayName(newStatus)}\" thành công.";
                 _order = await OrderService.GetOrderByIdAsync(Id);
+                _updateMessage = _order?.StatusEmailStatus == EmailDeliveryStatus.Sent
+                    ? $"Đã cập nhật sang \"{OrderAdminHelpers.GetStatusDisplayName(newStatus)}\" và gửi email cho khách hàng."
+                    : $"Đã cập nhật sang \"{OrderAdminHelpers.GetStatusDisplayName(newStatus)}\". Email chưa gửi được và đã được ghi nhận để thử lại.";
             }
             else
             {

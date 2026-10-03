@@ -40,6 +40,17 @@
             }
         </button>
 
+        @if (StatusEmailStatus == EmailDeliveryStatus.Failed)
+        {
+            <button type="button"
+                    class="w-full h-10 flex items-center justify-center gap-2 rounded-xl border border-error/40 bg-error-container/40 text-on-error-container font-label-md text-sm font-semibold hover:bg-error-container transition-colors disabled:opacity-50"
+                    @onclick="HandleRetryEmailClick"
+                    disabled="@IsUpdating">
+                <span class="material-symbols-outlined text-[18px]">forward_to_inbox</span>
+                <span>Gửi lại email trạng thái</span>
+            </button>
+        }
+
         <div class="text-[11px] text-on-surface-variant flex items-center justify-between pt-1">
             <span>Cập nhật lần cuối:</span>
             <span class="font-mono">@(UpdatedAt?.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? "Chưa có")</span>
@@ -53,6 +64,9 @@
 
     [Parameter]
     public DateTime? UpdatedAt { get; set; }
+
+    [Parameter]
+    public EmailDeliveryStatus StatusEmailStatus { get; set; }
 
     [Parameter]
     public bool IsUpdating { get; set; }
@@ -70,5 +84,10 @@
     private async Task HandleUpdateClick()
     {
         await OnStatusUpdate.InvokeAsync(_selectedStatus);
+    }
+
+    private async Task HandleRetryEmailClick()
+    {
+        await OnStatusUpdate.InvokeAsync(Status);
     }
 }

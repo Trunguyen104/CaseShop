@@ -11,9 +11,11 @@
     {
         <div class="flex min-h-32 items-center justify-center gap-3 text-on-surface-variant"><AppSpinner /> Đang tải danh mục địa chỉ...</div>
     }
-    else if (_error is not null)
+    else if (_catalogError is not null)
     {
-        <div class="rounded-xl bg-error-container p-4 text-on-error-container">@_error</div>
+        <AppEmptyState Icon="location_off" Title="Chưa tải được danh mục địa chỉ" Description="@_catalogError">
+            <AppButton Text="Thử tải lại" Icon="refresh" IsLoading="_isLoading" IsDisabled="IsDisabled" OnClick="RetryLoadProvincesAsync" />
+        </AppEmptyState>
     }
     else
     {
@@ -31,6 +33,13 @@
                     <option value="0">@(_isLoadingWards ? "Đang tải..." : "Chọn Phường/Xã")</option>
                     @foreach (var ward in _wards) { <option value="@ward.Code">@ward.Name</option> }
                 </select>
+                @if (_wardError is not null)
+                {
+                    <div class="mt-1 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-error-container px-3 py-2 text-on-error-container">
+                        <span class="font-body-sm text-body-sm">@_wardError</span>
+                        <AppButton Text="Tải lại" Icon="refresh" Variant="AppButton.AppButtonVariant.Ghost" IsLoading="_isLoadingWards" IsDisabled="IsDisabled" OnClick="RetryLoadWardsAsync" />
+                    </div>
+                }
             </div>
             <div class="flex flex-col gap-1.5 sm:col-span-2">
                 <label for="address-line" class="font-label-md text-label-md font-medium">Số nhà, tên đường, thông tin bổ sung <span class="text-error">*</span></label>
@@ -51,26 +60,88 @@
     private string _addressLine = string.Empty;
     private bool _isLoading = true;
     private bool _isLoadingWards;
-    private string? _error;
+    private string? _catalogError;
+    private string? _wardError;
+    private int _wardRequestVersion;
 
     protected override async Task OnInitializedAsync()
     {
-        try { _provinces = await AddressService.GetProvincesAsync(); }
-        catch (Exception ex) { Logger.LogError(ex, "Failed to load the Vietnam province list."); _error = "Không thể tải danh mục địa chỉ. Vui lòng thử lại."; }
-        finally { _isLoading = false; }
+        await LoadProvincesAsync();
     }
 
     private async Task HandleProvinceChangedAsync(ChangeEventArgs args)
     {
         _provinceCode = int.TryParse(args.Value?.ToString(), out var value) ? value : 0;
-        _wardCode = 0; _wards = [];
+        _wardCode = 0;
+        _wards = [];
+        _wardError = null;
         if (_provinceCode > 0)
         {
-            _isLoadingWards = true;
-            try { _wards = await AddressService.GetWardsAsync(_provinceCode); }
-            catch (Exception ex) { Logger.LogError(ex, "Failed to load wards for province {ProvinceCode}.", _provinceCode); _error = "Không thể tải danh sách Phường/Xã."; }
-            finally { _isLoadingWards = false; }
+            await LoadWardsAsync(_provinceCode);
         }
+        await NotifyChangedAsync();
+    }
+
+    private async Task LoadProvincesAsync()
+    {
+        _isLoading = true;
+        _catalogError = null;
+        try
+        {
+            _provinces = await AddressService.GetProvincesAsync();
+            if (_provinces.Count == 0)
+            {
+                _catalogError = "Danh mục Tỉnh/Thành phố hiện đang trống. Vui lòng thử lại.";
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to load the Vietnam province list.");
+            _catalogError = "Không thể tải danh mục địa chỉ. Vui lòng kiểm tra kết nối và thử lại.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task LoadWardsAsync(int provinceCode)
+    {
+        var requestVersion = ++_wardRequestVersion;
+        _isLoadingWards = true;
+        _wardError = null;
+        try
+        {
+            var wards = await AddressService.GetWardsAsync(provinceCode);
+            if (requestVersion != _wardRequestVersion || provinceCode != _provinceCode) return;
+
+            _wards = wards;
+            if (_wards.Count == 0)
+            {
+                _wardError = "Chưa có dữ liệu Phường/Xã cho khu vực này.";
+            }
+        }
+        catch (Exception ex)
+        {
+            if (requestVersion != _wardRequestVersion || provinceCode != _provinceCode) return;
+
+            Logger.LogError(ex, "Failed to load wards for province {ProvinceCode}.", provinceCode);
+            _wardError = "Không thể tải danh sách Phường/Xã. Thông tin đã nhập vẫn được giữ lại.";
+        }
+        finally
+        {
+            if (requestVersion == _wardRequestVersion)
+            {
+                _isLoadingWards = false;
+            }
+        }
+    }
+
+    private Task RetryLoadProvincesAsync() => LoadProvincesAsync();
+    private async Task RetryLoadWardsAsync()
+    {
+        if (_provinceCode <= 0) return;
+        await LoadWardsAsync(_provinceCode);
         await NotifyChangedAsync();
     }
 

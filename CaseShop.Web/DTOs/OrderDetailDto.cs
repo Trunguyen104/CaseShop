@@ -25,6 +25,11 @@ public class OrderDetailDto
     public decimal TotalAmount { get; set; }
     public PaymentInfoDto? Payment { get; set; }
     public EmailDeliveryStatus ConfirmationEmailStatus { get; set; }
+    public EmailDeliveryStatus StatusEmailStatus { get; set; }
+    public int StatusEmailAttempts { get; set; }
+    public DateTime? StatusEmailSentAt { get; set; }
+    public string? StatusEmailLastError { get; set; }
+    public OrderStatus? LastNotifiedStatus { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
     public List<OrderItemDetailDto> Items { get; set; } = new();

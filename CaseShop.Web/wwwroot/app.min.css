@@ -2532,6 +2532,10 @@ main > :last-child {
   border-color: rgb(110 231 183 / 0.4);
 }
 
+.border-error\/40 {
+  border-color: rgb(186 26 26 / 0.4);
+}
+
 .border-on-primary\/10 {
   border-color: rgb(255 255 255 / 0.1);
 }
@@ -2676,6 +2680,10 @@ main > :last-child {
 .bg-error-container {
   --tw-bg-opacity: 1;
   background-color: rgb(255 218 214 / var(--tw-bg-opacity, 1));
+}
+
+.bg-error-container\/40 {
+  background-color: rgb(255 218 214 / 0.4);
 }
 
 .bg-error-container\/80 {

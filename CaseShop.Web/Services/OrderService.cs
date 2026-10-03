@@ -126,6 +126,7 @@ public class OrderService : IOrderService
             PaymentMethod = Enum.IsDefined(typeof(PaymentMethodType), checkoutDto.PaymentMethod) ? checkoutDto.PaymentMethod : throw new ArgumentException("Phuong thuc thanh toan khong hop le."),
             PaymentStatus = checkoutDto.PaymentMethod == PaymentMethodType.PayOSQr ? PaymentStatus.Pending : PaymentStatus.NotRequired,
             ConfirmationEmailStatus = EmailDeliveryStatus.Pending,
+            StatusEmailStatus = EmailDeliveryStatus.Pending,
             Status = OrderStatus.Pending,
             CreatedAt = DateTime.UtcNow,
             Items = new List<OrderItem>()
@@ -206,6 +207,10 @@ public class OrderService : IOrderService
                 _logger.LogWarning(ex, "Order {OrderId} persisted but PayOS QR could not be created", order.Id);
             }
         }
+        else if (order.PaymentMethod == PaymentMethodType.CashOnDelivery)
+        {
+            await _confirmationEmailService.SendAsync(order.Id, cancellationToken: cancellationToken);
+        }
 
         _logger.LogInformation("Order creation completed for OrderId {OrderId}, OrderCode {OrderCode}, TotalAmount {TotalAmount}",
             order.Id, order.OrderCode, order.TotalAmount);
@@ -280,16 +285,33 @@ public class OrderService : IOrderService
 
     public async Task<bool> UpdateOrderStatusAsync(Guid orderId, OrderStatus newStatus, CancellationToken cancellationToken = default)
     {
-        var order = await _orderRepository.GetByIdAsync(orderId, cancellationToken);
+        var order = await _orderRepository.GetForUpdateByIdAsync(orderId, cancellationToken);
         if (order == null)
         {
             return false;
         }
 
+        if (!Enum.IsDefined(newStatus))
+        {
+            throw new ArgumentException("Trạng thái đơn hàng không hợp lệ.", nameof(newStatus));
+        }
+
+        if (order.Status == newStatus)
+        {
+            if (order.StatusEmailStatus == EmailDeliveryStatus.Failed)
+            {
+                await _confirmationEmailService.SendStatusUpdateAsync(order.Id, allowRetry: true, cancellationToken);
+            }
+            return true;
+        }
+
         order.Status = newStatus;
         order.UpdatedAt = DateTime.UtcNow;
+        order.StatusEmailStatus = EmailDeliveryStatus.Pending;
+        order.StatusEmailLastError = null;
 
         await _orderRepository.UpdateAsync(order, cancellationToken);
+        await _confirmationEmailService.SendStatusUpdateAsync(order.Id, cancellationToken: cancellationToken);
         return true;
     }
 
@@ -335,6 +357,11 @@ public class OrderService : IOrderService
             ShippingFee = order.ShippingFee,
             TotalAmount = order.TotalAmount,
             ConfirmationEmailStatus = order.ConfirmationEmailStatus,
+            StatusEmailStatus = order.StatusEmailStatus,
+            StatusEmailAttempts = order.StatusEmailAttempts,
+            StatusEmailSentAt = order.StatusEmailSentAt,
+            StatusEmailLastError = order.StatusEmailLastError,
+            LastNotifiedStatus = order.LastNotifiedStatus,
             Payment = order.PaymentMethod == PaymentMethodType.PayOSQr ? new PaymentInfoDto
             {
                 Status = order.PaymentStatus,

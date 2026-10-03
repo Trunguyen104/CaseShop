@@ -14,6 +14,16 @@ test('delivery address uses service and detailed address without map interop', (
   assert.doesNotMatch(source, /AppDbContext/);
 });
 
+test('delivery address keeps the form usable and allows retrying ward failures', () => {
+  const source = read('CaseShop.Web/Components/Pages/Checkout/Components/DeliveryAddressSection.razor');
+  assert.match(source, /_catalogError/);
+  assert.match(source, /_wardError/);
+  assert.match(source, /RetryLoadProvincesAsync/);
+  assert.match(source, /RetryLoadWardsAsync/);
+  assert.match(source, /requestVersion != _wardRequestVersion \|\| provinceCode != _provinceCode/);
+  assert.match(source, /Thông tin đã nhập vẫn được giữ lại/);
+});
+
 test('checkout contract does not carry delivery coordinates', () => {
   const checkout = read('CaseShop.Web/DTOs/CheckoutDto.cs');
   const order = read('CaseShop.Web/Entities/Order.cs');
