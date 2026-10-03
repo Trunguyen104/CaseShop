@@ -159,6 +159,9 @@ public static class DbSeeder
         }
         await context.SaveChangesAsync();
 
+        // 5. Prepared support chatbot knowledge base
+        await ChatbotKnowledgeSeeder.SeedAsync(context, logger);
+
         logger.LogInformation("Demo data seed completed successfully.");
     }
 

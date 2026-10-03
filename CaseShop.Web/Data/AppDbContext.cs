@@ -21,6 +21,7 @@ public class AppDbContext : DbContext
     public DbSet<CustomDesign> CustomDesigns { get; set; } = null!;
     public DbSet<PhoneBrand> PhoneBrands { get; set; } = null!;
     public DbSet<PhoneModel> PhoneModels { get; set; } = null!;
+    public DbSet<ChatbotKnowledgeEntry> ChatbotKnowledgeEntries { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

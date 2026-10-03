@@ -1,0 +1,266 @@
+@rendermode InteractiveServer
+@inject IChatbotService ChatbotService
+@inject NavigationManager NavigationManager
+@inject ILogger<ChatbotWidget> Logger
+@inject IJSRuntime JSRuntime
+
+<div class="fixed inset-x-0 bottom-0 z-50 pointer-events-none sm:inset-x-auto sm:bottom-6 sm:right-6">
+    @if (_isOpen)
+    {
+        <section id="meism-chatbot-panel"
+                 class="pointer-events-auto flex h-[82dvh] w-full flex-col overflow-hidden rounded-t-2xl border border-outline-variant bg-surface-container-lowest shadow-2xl sm:h-[min(620px,calc(100dvh-7rem))] sm:w-[390px] sm:rounded-2xl"
+                 role="dialog"
+                 aria-modal="false"
+                 aria-labelledby="meism-chatbot-title">
+            <header class="flex shrink-0 items-center justify-between bg-primary px-4 py-3.5 text-on-primary">
+                <div class="flex min-w-0 items-center gap-3">
+                    <div class="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-on-primary text-primary shadow-sm">
+                        <span class="material-symbols-outlined text-[22px]" aria-hidden="true">smart_toy</span>
+                        <span class="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-primary bg-emerald-400" aria-hidden="true"></span>
+                    </div>
+                    <div class="min-w-0">
+                        <h2 id="meism-chatbot-title" class="truncate font-headline-sm text-base font-semibold">Trợ lý ME-ISM</h2>
+                        <p class="font-body-sm text-xs text-on-primary/70">Trả lời tự động từ nội dung hỗ trợ</p>
+                    </div>
+                </div>
+                <button type="button"
+                        class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-on-primary/80 transition-colors hover:bg-on-primary/10 hover:text-on-primary focus:outline-none focus:ring-2 focus:ring-on-primary/70"
+                        @onclick="Close"
+                        aria-label="Đóng trợ lý ME-ISM">
+                    <span class="material-symbols-outlined text-[22px]" aria-hidden="true">close</span>
+                </button>
+            </header>
+
+            <div id="meism-chatbot-messages" class="flex-1 space-y-4 overflow-y-auto bg-surface-container-low p-4" aria-live="polite" aria-relevant="additions">
+                @foreach (var message in _messages)
+                {
+                    <div @key="message.Id" class="flex @(message.IsBot ? "justify-start" : "justify-end")">
+                        <div class="max-w-[86%]">
+                            <div class="rounded-2xl px-4 py-3 font-body-md text-body-md leading-relaxed shadow-sm @(message.IsBot ? "rounded-bl-md border border-outline-variant/70 bg-surface-container-lowest text-on-surface" : "rounded-br-md bg-primary text-on-primary")">
+                                <p class="whitespace-pre-line break-words">@message.Content</p>
+                            </div>
+
+                            @if (message.Action is not null)
+                            {
+                                <a href="@message.Action.Url"
+                                   class="mt-2 inline-flex h-9 items-center gap-1.5 rounded-lg border border-outline-variant bg-surface-container-lowest px-3 font-label-sm text-label-sm font-semibold text-on-surface shadow-sm transition-colors hover:bg-surface-container focus:outline-none focus:ring-2 focus:ring-primary/20">
+                                    <span>@message.Action.Label</span>
+                                    <span class="material-symbols-outlined text-[16px]" aria-hidden="true">arrow_forward</span>
+                                </a>
+                            }
+                        </div>
+                    </div>
+                }
+
+                @if (_isSending)
+                {
+                    <div class="flex justify-start" aria-label="Chatbot đang trả lời">
+                        <div class="flex items-center gap-2 rounded-2xl rounded-bl-md border border-outline-variant/70 bg-surface-container-lowest px-4 py-3 shadow-sm">
+                            <AppSpinner Size="AppSpinner.SpinnerSize.Small" />
+                            <span class="font-body-sm text-body-sm text-on-surface-variant">Đang tìm câu trả lời...</span>
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <div class="shrink-0 border-t border-outline-variant bg-surface-container-lowest px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+                @if (_showSuggestions)
+                {
+                    <div class="mb-3 flex gap-2 overflow-x-auto pb-1" aria-label="Câu hỏi gợi ý">
+                        @foreach (var suggestion in _suggestions)
+                        {
+                            <button type="button"
+                                    class="h-8 shrink-0 rounded-full border border-outline-variant bg-surface px-3 font-label-sm text-label-sm text-on-surface transition-colors hover:border-primary hover:bg-surface-container disabled:cursor-not-allowed disabled:opacity-50"
+                                    disabled="@_isSending"
+                                    @onclick="() => SendQuickReplyAsync(suggestion)">
+                                @suggestion
+                            </button>
+                        }
+                    </div>
+                }
+
+                @if (!string.IsNullOrEmpty(_errorMessage))
+                {
+                    <div class="mb-2 flex items-start gap-2 rounded-lg bg-error-container px-3 py-2 text-on-error-container" role="alert">
+                        <span class="material-symbols-outlined mt-0.5 text-[16px]" aria-hidden="true">error</span>
+                        <p class="font-body-sm text-body-sm">@_errorMessage</p>
+                    </div>
+                }
+
+                <EditForm Model="_request" OnValidSubmit="SendAsync" FormName="meismChatbotForm">
+                    <DataAnnotationsValidator />
+                    <div class="flex items-end gap-2">
+                        <div class="min-w-0 flex-1">
+                            <label for="meism-chatbot-message" class="sr-only">Nhập câu hỏi cho trợ lý ME-ISM</label>
+                            <input id="meism-chatbot-message"
+                                   class="h-11 w-full rounded-xl border border-outline-variant bg-surface px-3.5 font-body-md text-body-md text-on-surface outline-none transition focus:border-primary focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary/10 disabled:cursor-not-allowed disabled:opacity-60"
+                                   @bind="_request.Message"
+                                   @bind:event="oninput"
+                                   maxlength="500"
+                                   autocomplete="off"
+                                   disabled="@_isSending"
+                                   placeholder="Nhập câu hỏi của bạn..." />
+                            <ValidationMessage For="@(() => _request.Message)" class="mt-1 block font-body-sm text-xs text-error" />
+                        </div>
+                        <AppButton Type="submit"
+                                   Icon="send"
+                                   Title="Gửi câu hỏi"
+                                   IsLoading="_isSending"
+                                   IsDisabled="@string.IsNullOrWhiteSpace(_request.Message)"
+                                   Class="!h-11 !w-11 !shrink-0 !rounded-xl !px-0" />
+                    </div>
+                </EditForm>
+                <p class="mt-2 text-center font-body-sm text-[10px] leading-4 text-on-surface-variant">Trợ lý tự động có thể chưa hiểu mọi câu hỏi.</p>
+            </div>
+        </section>
+    }
+    else
+    {
+        <div class="pointer-events-auto flex justify-end px-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-0">
+            <button type="button"
+                    class="group flex h-14 items-center gap-3 rounded-full bg-primary px-4 text-on-primary shadow-xl transition-all hover:-translate-y-0.5 hover:bg-neutral-800 hover:shadow-2xl focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                    @onclick="Open"
+                    aria-expanded="false"
+                    aria-controls="meism-chatbot-panel">
+                <span class="flex h-9 w-9 items-center justify-center rounded-full bg-on-primary text-primary">
+                    <span class="material-symbols-outlined text-[21px]" aria-hidden="true">smart_toy</span>
+                </span>
+                <span class="pr-1 font-label-md text-label-md font-semibold">Hỏi ME-ISM</span>
+            </button>
+        </div>
+    }
+</div>
+
+@code {
+    private static readonly string[] InitialSuggestions =
+    [
+        "Thiết kế ốp lưng",
+        "Giá và thanh toán",
+        "Giao hàng",
+        "Theo dõi đơn",
+        "Đổi trả và bảo hành"
+    ];
+
+    private readonly string _clientKey = Guid.NewGuid().ToString("N");
+    private readonly List<ChatUiMessage> _messages =
+    [
+        ChatUiMessage.Bot("Xin chào! Mình là trợ lý ME-ISM. Mình có thể giúp bạn tìm hiểu về thiết kế ốp lưng, giá, thanh toán, giao hàng và chính sách hỗ trợ.")
+    ];
+
+    private ChatbotRequestDto _request = new();
+    private IReadOnlyList<string> _suggestions = InitialSuggestions;
+    private bool _isOpen;
+    private bool _isSending;
+    private bool _showSuggestions = true;
+    private bool _shouldScroll;
+    private string? _errorMessage;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_shouldScroll || !_isOpen) return;
+
+        _shouldScroll = false;
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("caseShopChatbot.scrollToBottom", "meism-chatbot-messages");
+        }
+        catch (JSDisconnectedException)
+        {
+            Logger.LogDebug("Chatbot scroll skipped because the Blazor circuit disconnected");
+        }
+        catch (JSException ex)
+        {
+            Logger.LogWarning(ex, "Could not scroll chatbot messages to the latest response");
+        }
+    }
+
+    private void Open()
+    {
+        _isOpen = true;
+        _shouldScroll = true;
+    }
+
+    private void Close() => _isOpen = false;
+
+    private async Task SendQuickReplyAsync(string suggestion)
+    {
+        if (_isSending) return;
+        _request.Message = suggestion;
+        await SendAsync();
+    }
+
+    private async Task SendAsync()
+    {
+        if (_isSending || string.IsNullOrWhiteSpace(_request.Message)) return;
+
+        var submittedMessage = _request.Message.Trim();
+        _messages.Add(ChatUiMessage.User(submittedMessage));
+        _request = new ChatbotRequestDto();
+        _errorMessage = null;
+        _isSending = true;
+        _showSuggestions = false;
+        _shouldScroll = true;
+        TrimHistory();
+
+        try
+        {
+            var response = await ChatbotService.GetResponseAsync(
+                new ChatbotRequestDto
+                {
+                    Message = submittedMessage,
+                    CurrentRoute = GetCurrentRoute()
+                },
+                _clientKey);
+
+            _messages.Add(ChatUiMessage.Bot(response.Answer, response.Action));
+            _suggestions = response.QuickReplies;
+            _showSuggestions = response.QuickReplies.Count > 0;
+            _shouldScroll = true;
+            TrimHistory();
+        }
+        catch (ArgumentException ex)
+        {
+            Logger.LogWarning(ex, "Chatbot rejected invalid input");
+            _errorMessage = FirstLine(ex.Message);
+        }
+        catch (InvalidOperationException ex)
+        {
+            Logger.LogWarning(ex, "Chatbot could not answer the submitted question");
+            _errorMessage = FirstLine(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Unexpected chatbot UI failure");
+            _errorMessage = "Không thể gửi câu hỏi lúc này. Vui lòng thử lại sau.";
+        }
+        finally
+        {
+            _isSending = false;
+        }
+    }
+
+    private string GetCurrentRoute()
+    {
+        var relativePath = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
+        var route = $"/{relativePath}";
+        return route.Length <= 200 ? route : route[..200];
+    }
+
+    private void TrimHistory()
+    {
+        while (_messages.Count > 30)
+        {
+            _messages.RemoveAt(1);
+        }
+    }
+
+    private static string FirstLine(string message) =>
+        message.Split([Environment.NewLine], StringSplitOptions.RemoveEmptyEntries).FirstOrDefault()
+        ?? "Nội dung không hợp lệ.";
+
+    private sealed record ChatUiMessage(Guid Id, bool IsBot, string Content, ChatbotActionDto? Action)
+    {
+        public static ChatUiMessage Bot(string content, ChatbotActionDto? action = null) => new(Guid.NewGuid(), true, content, action);
+        public static ChatUiMessage User(string content) => new(Guid.NewGuid(), false, content, null);
+    }
+}

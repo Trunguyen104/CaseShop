@@ -7,6 +7,7 @@ using CaseShop.Web.Services;
 using CaseShop.Web.Services.Addresses;
 using CaseShop.Web.Services.Email;
 using CaseShop.Web.Services.Payments;
+using CaseShop.Web.Services.Security;
 using CaseShop.Web.DTOs;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
@@ -82,6 +83,7 @@ builder.Services.AddScoped<IAdminRepository, AdminRepository>();
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
 builder.Services.AddScoped<IStickerRepository, StickerRepository>();
 builder.Services.AddScoped<IOrderRepository, OrderRepository>();
+builder.Services.AddScoped<IChatbotKnowledgeRepository, ChatbotKnowledgeRepository>();
 
 // Services
 builder.Services.AddScoped<IAuthService, AuthService>();
@@ -91,6 +93,8 @@ builder.Services.AddScoped<IStickerService, StickerService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.AddScoped<ICartService, CartService>();
 builder.Services.AddScoped<IPhoneCatalogService, PhoneCatalogService>();
+builder.Services.AddScoped<IChatbotService, ChatbotService>();
+builder.Services.AddSingleton<IChatbotRateLimiter, ChatbotRateLimiter>();
 builder.Services.AddScoped<IPayOsGateway, PayOsGateway>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
